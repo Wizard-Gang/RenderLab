@@ -60,5 +60,6 @@ describe("RendererLifecycle", () => {
     expect(diagnostics.state).toBe("created");
     expect(diagnostics.backend).toEqual({ requested: "auto", active: null, failure: null });
     expect([diagnostics.frames.fps, diagnostics.gpu.drawCalls, diagnostics.gpu.textureBytes]).toEqual([null, null, null]);
+    expect([diagnostics.gpu.contexts, diagnostics.gpu.textures]).toEqual([0, 0]);
   });
 });

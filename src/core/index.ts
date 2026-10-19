@@ -1,6 +1,6 @@
 // RenderLab's renderer-neutral core. It imports nothing outside src/core/ and no DOM, PixiJS or React API;
 // `npm run check` enforces both (scripts/check-boundaries.mjs, tsconfig.core.json).
-export { ContractError } from "./contracts/errors";
+export { ContractError, Failures } from "./contracts/errors";
 export { compareIds, isStableId, layerId, objectId, resourceId, sceneId } from "./contracts/ids";
 export type { LayerId, ObjectId, ResourceId, SceneId } from "./contracts/ids";
 export { IDENTITY_TRANSFORM } from "./contracts/values";

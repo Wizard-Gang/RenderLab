@@ -10,7 +10,7 @@ body {
 }
 
 .shell {
-  max-width: 44rem;
+  max-width: 48rem;
   margin: 0 auto;
   padding: 3rem 1.5rem;
   line-height: 1.5;
@@ -23,4 +23,36 @@ body {
 
 .shell [role="status"] {
   color: #a9abb3;
+}
+
+.renderer-host {
+  margin: 1.5rem 0 0.75rem;
+  background: #101114;
+  outline: 1px solid #2a2c33;
+}
+
+.renderer-host canvas {
+  display: block;
+}
+
+.renderer button {
+  font: inherit;
+  margin: 0 0 1rem;
+}
+
+.diagnostics {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: 0.25rem 1rem;
+  margin: 0;
+  font-size: 0.875rem;
+}
+
+.diagnostics dt {
+  color: #a9abb3;
+}
+
+.diagnostics dd {
+  margin: 0;
+  font-variant-numeric: tabular-nums;
 }

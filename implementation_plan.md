@@ -4,18 +4,6 @@
 
 The tasks below are the remaining baseline tasks reserved by the governing specification, [2026-10-18-renderlab.md](docs/specifications/2026-10-18-renderlab.md) §20, in its order. Each one is delivered by its own controlled PR. Before an adapter task, re-read the live `Wizard-Gang/MapLab` and `Wizard-Gang/RigLab` main branches (§3): their formats can change between sessions, and fixtures copied from them carry a provenance pin.
 
-### RLDR-003 — [FEAT] Initialize PixiJS v8 on a verified WebGL2 baseline
-
-- Dependency: RLDR-002 (scene and lifecycle contracts).
-- Why: WebGL2 is the initial production backend (§6.1, §16). The first PixiJS adapter proves the scene contracts drive real GPU output.
-- Scope: Add the current stable `pixi.js` 8.x as an exact pin with its lockfile. Build `src/render/pixi/`, an adapter implementing `RendererRuntime` for `webgl2` only: canvas mounting, explicit WebGL2 context verification (never a WebGL1 fallback), scene mounting from the core model, sprite rendering from a texture generated in the repository, resize, and teardown that releases every GPU resource. The demo shell mounts a reference scene and shows the active backend or the initialization error.
-- Non-goals: No WebGPU (RLDR-004), no camera behaviour beyond identity (RLDR-005), no asset bundles (RLDR-006), and no MapLab or RigLab content.
-- Acceptance: The reference scene renders with WebGL2 in Chromium and WebKit. A browser without WebGL2 (forced in a test) gets a clear unsupported-configuration error, not a blank canvas. After destroy, diagnostics report no live textures or contexts.
-- Tests: Vitest covers the adapter's pure scene-to-display translation. Playwright reads back canvas pixels for known sprite colours and positions in both browsers, forces WebGL2 to be unavailable, and covers teardown and re-mount.
-- Validation: The standard set. Each browser's headless WebGL2 availability is recorded. If CI's headless browser lacks it, establish a supported configuration (for example Chromium's software GL flags); never skip or silently pass the test.
-- Documentation: `docs/GPU-BACKENDS.md` (WebGL2 baseline, context requirements, headless CI configuration); README run notes.
-- Authorities: Specification §2, §6.1–6.3, §16, §17, §19 (rendering tests); PixiJS v8 documentation for the pinned release.
-
 ### RLDR-004 — [FEAT] Add the WebGPU backend and capability selection
 
 - Dependency: RLDR-003 (PixiJS adapter).

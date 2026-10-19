@@ -32,6 +32,7 @@ export interface Metric {
 }
 
 export interface RecoveryEvent {
+  /** Frames rendered when it happened, so recovery logs compare across runs and machines. */
   readonly at: number;
   readonly kind: "context-lost" | "restored" | "restore-failed" | "fallback";
   readonly detail: string;
@@ -48,7 +49,8 @@ export interface RendererDiagnostics {
     readonly updateCpuMs: Metric | null;
   };
   readonly scene: { readonly id: string | null; readonly revision: number | null; readonly visibleChunks: number; readonly visibleCharacters: number; readonly activeParticles: number };
-  readonly gpu: { readonly drawCalls: Metric | null; readonly textures: number; readonly textureBytes: Metric | null };
+  /** `contexts` counts the graphics contexts this runtime holds; destroy must bring it and `textures` to 0. */
+  readonly gpu: { readonly contexts: number; readonly drawCalls: Metric | null; readonly textures: number; readonly textureBytes: Metric | null };
   readonly recoveries: readonly RecoveryEvent[];
 }
 
@@ -58,7 +60,7 @@ export function emptyDiagnostics(requested: RendererBackend, state: LifecycleSta
     backend: { requested, active: null, failure: null },
     frames: { rendered: 0, fps: null, averageFrameMs: null, p95FrameMs: null, updateCpuMs: null },
     scene: { id: null, revision: null, visibleChunks: 0, visibleCharacters: 0, activeParticles: 0 },
-    gpu: { drawCalls: null, textures: 0, textureBytes: null },
+    gpu: { contexts: 0, drawCalls: null, textures: 0, textureBytes: null },
     recoveries: [],
   };
 }

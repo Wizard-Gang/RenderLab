@@ -1,6 +1,6 @@
 import { BufferImageSource, Texture } from "pixi.js";
 import { describe, expect, it } from "vitest";
-import { layerId, objectId, resourceId, SceneStore, type ResourceId, type SceneDefinition } from "../../src/core";
+import { computeView, layerId, objectId, resourceId, SceneStore, type ResourceId, type SceneDefinition } from "../../src/core";
 import { UnsupportedSceneError } from "../../src/render";
 import { PixiSceneGraph } from "../../src/render/pixi/scene-graph";
 import { character, layer, resource, sprite } from "../core/fixtures";
@@ -21,7 +21,7 @@ function scene(): SceneDefinition {
       sprite("crate", { layerId: layerId("world.high"), texture: resourceId("tex.b"), sortKey: 5 }),
       sprite("rock", { layerId: layerId("world.high"), texture: resourceId("tex.b"), sortKey: 1 }),
     ],
-    camera: { x: 0, y: 0, zoom: 1 },
+    camera: { x: 0, y: 0, zoom: 1, bounds: null },
   };
 }
 
@@ -90,6 +90,33 @@ describe("PixiSceneGraph", () => {
       layers: [...definition.layers, layer("world.actors", 2, "world")], objects: [...definition.objects, character("npc")] };
     expect(() => graphOf(withHero)).toThrow(UnsupportedSceneError);
     expect(() => graphOf(withHero)).toThrow(/object npc: character objects are not presented yet/);
+  });
+
+  it("places world root layers with the camera, nested layers by relative parallax, and screen layers in CSS pixels", () => {
+    const definition = {
+      ...scene(),
+      layers: [
+        layer("sky", 0, null, { space: "screen", parallax: { x: 0, y: 0 } }),
+        layer("far", 1, null, { parallax: { x: 0.5, y: 0.5 } }),
+        layer("world", 2),
+        layer("world.near", 0, "world", { parallax: { x: 1.5, y: 1 } }),
+      ],
+      objects: [sprite("cloud", { layerId: layerId("sky"), texture: resourceId("tex.a") })],
+    };
+    const graph = graphOf(definition);
+    const view = computeView({ x: 200, y: 100, zoom: 2, bounds: null }, { width: 480, height: 270, dpr: 1 }, { mode: "smooth", snap: false });
+    graph.applyView(view);
+    const placed = (id: string) => {
+      const container = graph.layerContainer(layerId(id));
+      return [container?.position.x, container?.position.y, container?.scale.x];
+    };
+    expect(graph.layerOrder()).toEqual(["sky", "far", "world", "world.near"]);
+    expect(placed("world")).toEqual([-160, -65, 2]);
+    expect(placed("far")).toEqual([40, 35, 2]);
+    expect(placed("world.near")).toEqual([-100, 0, 1]);
+    expect(placed("sky")).toEqual([0, 0, 1]);
+    graph.apply(graph.store.apply([{ op: "set-layer", id: layerId("far"), patch: { parallax: { x: 0, y: 0 } } }]));
+    expect(placed("far")).toEqual([240, 135, 2]);
   });
 
   it("destroys every display object on destroy and leaves textures to their owner", () => {

@@ -71,6 +71,6 @@ export function definition(): SceneDefinition {
       layer("hud", 2, null, { space: "screen", parallax: { x: 0, y: 0 } }),
     ],
     objects: [sprite("crate.1"), chunk(0, 0), character("hero")],
-    camera: { x: 0, y: 0, zoom: 2 },
+    camera: { x: 0, y: 0, zoom: 2, bounds: null },
   };
 }

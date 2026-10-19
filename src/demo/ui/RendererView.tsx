@@ -1,9 +1,12 @@
-import { useEffect, useRef, useState } from "react";
-import { backendName, type ActiveBackend, type RendererBackend, type RendererDiagnostics } from "../../core";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { backendName, type ActiveBackend, type CameraState, type RendererBackend, type RendererDiagnostics, type Viewport } from "../../core";
 import { PIXI_VERSION, PixiRuntime } from "../../render";
-import { BACKGROUND, REFERENCE_VIEWPORT, referenceScene } from "../scenes/reference";
+import { BACKGROUND } from "../scenes/reference";
 import { referenceTextures } from "../scenes/textures";
 import { CapabilityList } from "./CapabilityList";
+import { DiagnosticsList } from "./DiagnosticsList";
+import { optionsFromLocation, pixelPolicy, sceneFor, VIEW_SIZES, viewSize, writeOption, type DemoOptions } from "./options";
+import { useCameraInput } from "./useCameraInput";
 
 type Status =
   | { readonly kind: "starting" }
@@ -11,22 +14,16 @@ type Status =
   | { readonly kind: "stopped"; readonly message: string }
   | { readonly kind: "error"; readonly message: string };
 
-const BACKENDS: readonly RendererBackend[] = ["auto", "webgl2", "webgpu"];
 const describe = (error: unknown) => (error instanceof Error ? error.message : String(error));
 
-/** `?backend=auto|webgl2|webgpu` picks the backend and `?prefer=webgpu` makes `auto` try WebGPU first. */
-function fromLocation(): { backend: RendererBackend; preference: ActiveBackend } {
-  const params = new URLSearchParams(globalThis.location?.search ?? "");
-  const backend = params.get("backend") as RendererBackend;
-  return { backend: BACKENDS.includes(backend) ? backend : "auto", preference: params.get("prefer") === "webgpu" ? "webgpu" : "webgl2" };
-}
+const SCENE_LABELS: Record<DemoOptions["scene"], string> = { reference: "reference scene", grid: "pixel grid" };
 
-function statusText(status: Status): string {
+function statusText(status: Status, scene: DemoOptions["scene"]): string {
   switch (status.kind) {
     case "starting":
       return "Starting the renderer…";
     case "running":
-      return `Rendering the reference scene with ${backendName(status.backend)} on PixiJS ${PIXI_VERSION}.`;
+      return `Rendering the ${SCENE_LABELS[scene]} with ${backendName(status.backend)} on PixiJS ${PIXI_VERSION}.`;
     case "stopped":
       return `Rendering stopped: ${status.message}`;
     case "error":
@@ -34,14 +31,25 @@ function statusText(status: Status): string {
   }
 }
 
-/** Mounts the runtime on the reference scene and draws every animation frame. React never touches the scene. */
+/** Mounts the runtime on a demo scene and draws every animation frame. React never touches the scene itself. */
 export function RendererView() {
   const host = useRef<HTMLDivElement>(null);
-  const [choice, setChoice] = useState(fromLocation);
+  const runtime = useRef<PixiRuntime | null>(null);
+  const camera = useRef<CameraState | null>(null);
+  const [options, setOptions] = useState<DemoOptions>(() => optionsFromLocation());
   const [status, setStatus] = useState<Status>({ kind: "starting" });
   const [diagnostics, setDiagnostics] = useState<RendererDiagnostics | null>(null);
   const [teardown, setTeardown] = useState<RendererDiagnostics | null>(null);
   const [generation, setGeneration] = useState(0);
+  const size = viewSize(options.view);
+  const sizeRef = useRef(size);
+  sizeRef.current = size;
+  const policy = useMemo(() => pixelPolicy(options.pixel), [options.pixel]);
+  const viewport = useCallback((): Viewport => ({ ...sizeRef.current, dpr: window.devicePixelRatio || 1 }), []);
+  const choose = (name: keyof DemoOptions, value: string) => {
+    writeOption(name, value);
+    setOptions((current) => ({ ...current, [name]: value }));
+  };
 
   useEffect(() => {
     const container = host.current;
@@ -49,14 +57,17 @@ export function RendererView() {
     let active = true;
     let frame = 0;
     setStatus({ kind: "starting" });
-    const runtime = new PixiRuntime({
-      container, textures: referenceTextures, background: BACKGROUND, backend: choice.backend, autoPreference: choice.preference,
-      viewport: { ...REFERENCE_VIEWPORT, dpr: window.devicePixelRatio || 1 },
+    const scene = sceneFor(options.scene);
+    const instance = new PixiRuntime({
+      container, textures: referenceTextures, background: BACKGROUND, backend: options.backend, autoPreference: options.preference,
+      pixelPolicy: pixelPolicy(options.pixel), viewport: viewport(),
     });
+    runtime.current = instance;
+    camera.current = scene.camera;
     const draw = () => {
       if (!active) return;
       try {
-        runtime.render(0);
+        instance.render(0);
         frame = requestAnimationFrame(draw);
       } catch (error) {
         setStatus({ kind: "stopped", message: describe(error) });
@@ -64,66 +75,90 @@ export function RendererView() {
     };
     (async () => {
       try {
-        await runtime.initialize();
-        await runtime.mountScene(referenceScene());
-        const backend = runtime.getDiagnostics().backend.active;
+        await instance.initialize();
+        await instance.mountScene(scene);
+        const backend = instance.getDiagnostics().backend.active;
         if (!active || !backend) return;
         setStatus({ kind: "running", backend });
         draw();
       } catch (error) {
         if (active) setStatus({ kind: "error", message: describe(error) });
       } finally {
-        if (active) setDiagnostics(runtime.getDiagnostics());
+        if (active) setDiagnostics(instance.getDiagnostics());
       }
     })();
-    const poll = window.setInterval(() => setDiagnostics(runtime.getDiagnostics()), 250);
+    const poll = window.setInterval(() => setDiagnostics(instance.getDiagnostics()), 250);
     return () => {
       active = false;
+      runtime.current = null;
+      camera.current = null;
       cancelAnimationFrame(frame);
       window.clearInterval(poll);
-      if (runtime.getDiagnostics().state !== "destroyed") {
-        void runtime.destroy().then(() => setTeardown(runtime.getDiagnostics()));
-      }
+      if (instance.getDiagnostics().state !== "destroyed") void instance.destroy().then(() => setTeardown(instance.getDiagnostics()));
     };
-  }, [choice, generation]);
+  }, [options.backend, options.preference, options.scene, options.pixel, generation, viewport]);
 
-  const choose = (backend: RendererBackend) => {
-    const url = new URL(window.location.href);
-    url.searchParams.set("backend", backend);
-    window.history.replaceState(null, "", url);
-    setChoice((current) => ({ ...current, backend }));
-  };
+  // The view size and the device pixel ratio change live, through the runtime's resize.
+  useEffect(() => {
+    const resize = () => {
+      const current = runtime.current;
+      if (current?.getDiagnostics().state === "mounted") current.resize(viewport());
+    };
+    resize();
+    const media = window.matchMedia(`(resolution: ${window.devicePixelRatio || 1}dppx)`);
+    media.addEventListener("change", resize);
+    return () => media.removeEventListener("change", resize);
+  }, [options.view, viewport]);
+
+  const apply = useCallback((next: CameraState) => {
+    const current = runtime.current;
+    if (current?.getDiagnostics().state !== "mounted") return;
+    camera.current = next;
+    current.applySceneDelta([{ op: "set-camera", camera: next }]);
+  }, []);
+  const currentCamera = useCallback(() => camera.current, []);
+  useCameraInput({ host, camera: currentCamera, viewport, policy, apply });
 
   return (
-    <section className="renderer" aria-label="Reference scene">
-      <div ref={host} className="renderer-host" data-status={status.kind} style={REFERENCE_VIEWPORT} />
-      <p role="status">{statusText(status)}</p>
+    <section className="renderer" aria-label="Demo scene">
+      <div
+        ref={host} className="renderer-host" data-status={status.kind} style={size} tabIndex={0}
+        aria-label="Scene view: drag to pan, scroll to zoom, arrow keys and plus or minus when focused"
+      />
+      <p role="status">{statusText(status, options.scene)}</p>
       <div className="controls">
         <label>
           Backend{" "}
-          <select value={choice.backend} onChange={(event) => choose(event.target.value as RendererBackend)}>
-            <option value="auto">Auto (prefers {backendName(choice.preference)})</option>
+          <select value={options.backend} onChange={(event) => choose("backend", event.target.value as RendererBackend)}>
+            <option value="auto">Auto (prefers {backendName(options.preference)})</option>
             <option value="webgl2">WebGL2</option>
             <option value="webgpu">WebGPU</option>
           </select>
         </label>
+        <label>
+          Scene{" "}
+          <select value={options.scene} onChange={(event) => choose("scene", event.target.value)}>
+            <option value="reference">Reference</option>
+            <option value="grid">Pixel grid</option>
+          </select>
+        </label>
+        <label>
+          Pixels{" "}
+          <select value={options.pixel} onChange={(event) => choose("pixel", event.target.value)}>
+            <option value="smooth">Smooth</option>
+            <option value="strict">Strict pixel</option>
+          </select>
+        </label>
+        <label>
+          View{" "}
+          <select value={options.view} onChange={(event) => choose("view", event.target.value)}>
+            {VIEW_SIZES.map((value) => <option key={value} value={value}>{value.replace("x", " × ")}</option>)}
+          </select>
+        </label>
+        <button type="button" onClick={() => apply(sceneFor(options.scene).camera)}>Reset view</button>
         <button type="button" onClick={() => setGeneration((value) => value + 1)}>Restart renderer</button>
       </div>
-      {diagnostics && (
-        <dl className="diagnostics" aria-label="Diagnostics">
-          <dt>Requested backend</dt><dd>{diagnostics.backend.requested}</dd>
-          <dt>Active backend</dt><dd data-diagnostic="active">{diagnostics.backend.active ?? "none"}</dd>
-          <dt>Backend attempts</dt>
-          <dd data-diagnostic="attempts">
-            {diagnostics.backend.attempts.map((attempt) => `${attempt.backend}: ${attempt.outcome}${attempt.reason ? ` (${attempt.reason})` : ""}`).join("; ") || "none"}
-          </dd>
-          <dt>State</dt><dd data-diagnostic="state">{diagnostics.state}</dd>
-          <dt>Frames</dt><dd data-diagnostic="frames">{diagnostics.frames.rendered}</dd>
-          <dt>Textures</dt><dd data-diagnostic="textures">{diagnostics.gpu.textures}</dd>
-          <dt>Texture memory (estimated)</dt>
-          <dd>{diagnostics.gpu.textureBytes ? `${diagnostics.gpu.textureBytes.value} bytes` : "unknown"}</dd>
-        </dl>
-      )}
+      {diagnostics && <DiagnosticsList diagnostics={diagnostics} />}
       {diagnostics?.capabilities && <CapabilityList capabilities={diagnostics.capabilities} />}
       {teardown && (
         <p data-diagnostic="teardown">

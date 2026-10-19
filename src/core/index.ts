@@ -5,7 +5,12 @@ export { compareIds, isStableId, layerId, objectId, resourceId, sceneId } from "
 export type { LayerId, ObjectId, ResourceId, SceneId } from "./contracts/ids";
 export { IDENTITY_TRANSFORM } from "./contracts/values";
 export type { Transform2D, Vec2 } from "./contracts/values";
-export type { CameraState } from "./camera/state";
+export type { CameraBounds, CameraState } from "./camera/state";
+export {
+  clampCamera, clampCenter, computeView, DEFAULT_ZOOM_LIMITS, effectiveZoom, followStep, panBy, parallaxOffset, screenToWorld,
+  shakeOffset, SMOOTH_SNAPPED, STRICT_PIXEL, worldToScreen, zoomAt,
+} from "./camera/view";
+export type { CameraView, PixelPolicy, ZoomLimits } from "./camera/view";
 export type { AnimationState, Facing } from "./timeline/animation";
 export { acceptSnapshot } from "./timeline/snapshot";
 export type { EntityPresentation, EventParam, PresentationEvent, PresentationSnapshot } from "./timeline/snapshot";

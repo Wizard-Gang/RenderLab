@@ -1,7 +1,10 @@
 // The PixiJS display tree for one mounted scene, kept in step with its SceneStore. It needs no GPU, so it is
 // unit-tested in node; the runtime owns the renderer, the context and the textures it looks up.
 import { Container, Sprite, type Texture } from "pixi.js";
-import type { LayerDescriptor, LayerId, ObjectId, ResourceId, SceneDirty, SceneObject, SceneStore, SpriteObject } from "../../core";
+import {
+  parallaxOffset, type CameraView, type LayerDescriptor, type LayerId, type ObjectId, type ResourceId, type SceneDirty,
+  type SceneObject, type SceneStore, type SpriteObject,
+} from "../../core";
 import { UnsupportedSceneError } from "../errors";
 import { drawRanks, layerDisplay, spriteDisplay } from "./translate";
 
@@ -28,6 +31,7 @@ export class PixiSceneGraph {
   readonly #members = new Map<LayerId, Set<ObjectId>>();
   readonly #sprites = new Map<ObjectId, Sprite>();
   readonly #sortKeys = new Map<ObjectId, number>();
+  #view: CameraView | null = null;
 
   /** `texture` returns the loaded texture for a resource ID; every texture the scene uses must already be loaded. */
   constructor(store: SceneStore, texture: (id: ResourceId) => Texture) {
@@ -85,6 +89,33 @@ export class PixiSceneGraph {
       this.#applySprite(sprite, object as SpriteObject);
     }
     for (const layer of rerank) if (this.#layers.has(layer)) this.#rank(layer);
+    if (dirty.layers.length && this.#view) this.applyView(this.#view);
+  }
+
+  /**
+   * Place every layer for a camera view. Each world root layer carries the whole camera transform (zoom, then the
+   * origin plus its parallax offset), so screen-space layers can sit anywhere in the authored order, even behind the
+   * world. A nested world layer adds only its parallax relative to its parent; screen layers stay in CSS pixels.
+   */
+  applyView(view: CameraView): void {
+    this.#view = view;
+    for (const [id, node] of this.#layers) {
+      const layer = this.store.layer(id) as LayerDescriptor;
+      if (layer.space === "screen") {
+        node.root.scale.set(1);
+        node.root.position.set(0, 0);
+        continue;
+      }
+      const parent = layer.parentId === null ? undefined : this.store.layer(layer.parentId);
+      const offset = parallaxOffset(view, layer.parallax, parent?.parallax);
+      if (parent) {
+        node.root.scale.set(1);
+        node.root.position.set(offset.x, offset.y);
+      } else {
+        node.root.scale.set(view.zoom);
+        node.root.position.set(view.originX + offset.x * view.zoom, view.originY + offset.y * view.zoom);
+      }
+    }
   }
 
   /** Layer IDs in the order they draw. */

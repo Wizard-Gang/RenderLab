@@ -47,7 +47,7 @@ The runtime requests its own adapter and device and hands them to PixiJS (`src/r
 
 Both runtimes present **sprites only**. A scene or delta containing tile chunks, characters, particles or effects is refused with an `UnsupportedSceneError` naming each object. RLDR-009 and later tasks add those kinds.
 
-**Coordinates.** The camera is identity until RLDR-005: one world unit is one CSS pixel from the canvas's top-left corner, and the backing store is scaled by the viewport's DPR. Rotations convert from the model's degrees to PixiJS radians, and mirroring becomes a negative scale about the sprite's anchor (`src/render/pixi/translate.ts`).
+**Coordinates.** The runtime computes the camera view (see [Architecture](ARCHITECTURE.md), Coordinates and the camera) on mount, after every camera change and on resize, under its `pixelPolicy` (smooth with a snapped origin by default, or strict pixels), and places each layer from it. The backing store is scaled by the viewport's DPR. Rotations convert from the model's degrees to PixiJS radians, and mirroring becomes a negative scale about the sprite's anchor (`src/render/pixi/translate.ts`).
 
 **Textures and alpha.** Every texture resource a scene declares is loaded when it mounts, from a `TextureProvider` of straight-alpha RGBA8 pixels (`src/render/textures.ts`), until RLDR-006 and RLDR-007 compile real artwork.
 
@@ -66,7 +66,7 @@ Both runtimes present **sprites only**. A scene or delta containing tile chunks,
 
 The Playwright suite runs every backend test in Chromium and WebKit, WebKit standing in for Safari:
 
-- **Chromium.** Headless Chromium has no WebGPU adapter by default. It runs with `--enable-unsafe-webgpu --enable-features=Vulkan --use-angle=swiftshader`, which gives it SwiftShader for WebGPU (through Vulkan, which it needs to present) and for WebGL2. On Linux it also gets `--disable-vulkan-surface`, because headless Linux has no window surface to present to.
+- **Chromium.** Headless Chromium has no WebGPU adapter by default. It runs with `--enable-unsafe-webgpu --enable-features=Vulkan --use-angle=swiftshader`, which gives it SwiftShader for WebGPU (through Vulkan, which it needs to present) and for WebGL2.
 - **WebGL2** must render in both browsers; a missing WebGL2 fails the run.
 - **WebGPU outcome.** The probe's answer and the actual start outcome are logged and annotated on every run. An adapter can exist and still fail to start: headless Linux Chromium's SwiftShader device could not present. So the tests key off the outcome. Where WebGPU starts, the suite checks its pixels, teardown and device loss. Where it does not, the suite checks that an explicit `webgpu` request names the exact reason, and the WebGPU-only teardown and loss tests skip with that reason, never passing silently.
 - **Pixels.** The tests read real canvas output: a CSS-scale element screenshot decoded in the test, within six steps per channel.
@@ -75,7 +75,7 @@ The Playwright suite runs every backend test in Chromium and WebKit, WebKit stan
 | --- | --- | --- |
 | Chromium 1248, headless, macOS (Playwright 1.64.1, flags above) | Reference pixels pass | Reference pixels pass on SwiftShader (fallback adapter) |
 | WebKit 2370, headless, macOS (Playwright 1.64.1) | Reference pixels pass | Reference pixels pass on the Apple adapter |
-| Chromium on `ubuntu-latest` CI | Checked on every PR by the required `verify` job | SwiftShader adapter found. Whether its device presents is reported per run; with the Vulkan flags alone it failed on 2026-10-19 ("Instance dropped in popErrorScope") |
+| Chromium on `ubuntu-latest` CI | Checked on every PR by the required `verify` job | SwiftShader adapter found, but its device cannot present: WebGPU fails to start with "Instance dropped in popErrorScope", with or without `--disable-vulkan-surface` (2026-10-19). Reported per run |
 | WebKit on `ubuntu-latest` CI | Checked on every PR by the required `verify` job | Unavailable: `navigator.gpu` is not exposed (reported per run) |
 
 Because CI may not present WebGPU, a change under `src/render/` also runs the browser suite locally on macOS, where both browsers present WebGPU, and records that run in its Validation field.

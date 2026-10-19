@@ -7,6 +7,8 @@ import {
 
 export const REFERENCE_VIEWPORT = Object.freeze({ width: 480, height: 270 });
 export const BACKGROUND = 0x101114;
+/** The reference world is the backdrop's rectangle; the camera never shows past it. */
+export const REFERENCE_BOUNDS = Object.freeze({ minX: 0, minY: 0, maxX: REFERENCE_VIEWPORT.width, maxY: REFERENCE_VIEWPORT.height });
 
 export const COLOURS = Object.freeze({
   backdrop: 0x1d2b53,
@@ -61,6 +63,6 @@ export function referenceScene(): SceneDefinition {
       sprite("glass", "world.figures", "tex.glass", { x: 112, y: 140, scaleX: 48, scaleY: 48 }),
       sprite("hud.bar", "hud", "tex.white", { x: 8, y: 8, scaleX: 64, scaleY: 4 }),
     ],
-    camera: { x: REFERENCE_VIEWPORT.width / 2, y: REFERENCE_VIEWPORT.height / 2, zoom: 1 },
+    camera: { x: REFERENCE_VIEWPORT.width / 2, y: REFERENCE_VIEWPORT.height / 2, zoom: 1, bounds: REFERENCE_BOUNDS },
   };
 }

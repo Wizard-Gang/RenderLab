@@ -24,7 +24,7 @@ describe("SceneStore", () => {
       { op: "add", object: sprite("crate.2", { texture: resourceId("tex.barrel") }) },
       { op: "update", id: objectId("hero"), patch: { transform: { ...character("hero").transform, x: 4 } } },
       { op: "remove", id: objectId("crate.1") },
-      { op: "set-camera", camera: { x: 4, y: 0, zoom: 2 } },
+      { op: "set-camera", camera: { x: 4, y: 0, zoom: 2, bounds: null } },
     ]);
     expect(dirty.revision).toBe(1);
     expect(dirty.objects).toEqual({ added: ["crate.2"], updated: ["hero"], removed: ["crate.1"] });
@@ -105,6 +105,8 @@ describe("SceneStore", () => {
     expect(() => store.apply([{ op: "add-layer", layer: layer("a", 5, "b") }, { op: "add-layer", layer: layer("b", 6, "a") }]))
       .toThrow(/forms a cycle/);
     expect(() => store.apply([{ op: "add-resource", resource: resource("tex.crate", "texture") }])).toThrow(/already exists/);
+    expect(() => store.apply([{ op: "add-layer", layer: layer("world.hud", 9, "world", { space: "screen" }) }]))
+      .toThrow(/layer world\.hud\.space: must match its parent world's space, world/);
   });
 
   it("produces identical snapshots for the same seeded delta sequence", () => {

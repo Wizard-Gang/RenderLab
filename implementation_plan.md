@@ -4,18 +4,6 @@
 
 The tasks below are the remaining baseline tasks reserved by the governing specification, [2026-10-18-renderlab.md](docs/specifications/2026-10-18-renderlab.md) §20, in its order. Each one is delivered by its own controlled PR. Before an adapter task, re-read the live `Wizard-Gang/MapLab` and `Wizard-Gang/RigLab` main branches (§3): their formats can change between sessions, and fixtures copied from them carry a provenance pin.
 
-### RLDR-002 — [API] Define renderer-neutral scene contracts
-
-- Dependency: RLDR-001 (repository, toolchain and CI).
-- Why: Every later task presents through one renderer-neutral model (§6.2, §7, §13, §14). Fixing it first keeps PixiJS, React and the DOM out of core, and gives the importers and renderers stable contracts to build against.
-- Scope: `src/core/` scene model: scene IDs; visual layers with authored order and parents; static and dynamic objects; sprites; tile chunks keyed by 32×32 chunk coordinates; characters; particles; effects; visibility; sort keys; resource handles keyed by stable source IDs. Also camera state, animation presentation state (clip, entry tick, facing), `PresentationSnapshot`, and incremental scene deltas with dirty-chunk and dirty-object sets. Add a `RendererRuntime` lifecycle contract with an explicit state machine and a `RendererDiagnostics` shape. Enforce the §5 dependency rules in `npm run check`: a DOM-free core TypeScript project, and an import-boundary check that rejects PixiJS, React, `src/render`, `src/demo` or DOM globals under `src/core/`.
-- Non-goals: No PixiJS dependency or rendering, no MapLab or RigLab readers, no camera math beyond the state shape (RLDR-005), and no backend selection (RLDR-004).
-- Acceptance: Core compiles without the DOM library or PixiJS/React types. A seeded delta sequence yields identical snapshots and touches only its declared dirty chunks and objects. Two scenes never share mutable state. Illegal lifecycle transitions fail with precise errors.
-- Tests: Vitest under `tests/core/` covers the scene store, deltas, snapshot determinism, multi-scene isolation and the lifecycle state machine. A contract test proves the boundary check rejects a planted `pixi.js`, `react` or `document` use.
-- Validation: Pinned `npm ci`, `npm run check`, `npm run test:browser`, `npm run audit:dependencies` and the committed patch check.
-- Documentation: `docs/ARCHITECTURE.md` describes the scene model, the lifecycle states and the enforced dependency rules.
-- Authorities: Specification §5 (dependency rules), §6.2, §7, §13, §14; `scripts/repository-contract.mjs`.
-
 ### RLDR-003 — [FEAT] Initialize PixiJS v8 on a verified WebGL2 baseline
 
 - Dependency: RLDR-002 (scene and lifecycle contracts).

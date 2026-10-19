@@ -42,6 +42,13 @@ test('npm start runs the dev server and check stays credential-free, offline and
   assert.match(failuresWith((state) => { state.pkg.scripts['test:browser'] = 'vitest run'; }), /through playwright test/);
 });
 
+test('check enforces the architecture boundaries and the DOM-free core project', () => {
+  assert.match(failuresWith((state) => {
+    state.pkg.scripts.check = state.pkg.scripts.check.replace(' && npm run check:boundaries', '');
+  }), /must enforce the architecture boundaries/);
+  assert.match(failuresWith((state) => { state.pkg.scripts.typecheck = 'tsc --noEmit'; }), /tsconfig\.core\.json/);
+});
+
 test('RenderLab never deploys', () => {
   assert.match(failuresWith((state) => { state.pkg.scripts.ship = 'wrangler deploy'; }), /must never deploy/);
   assert.match(failuresWith((state) => { state.pkg.devDependencies.wrangler = '4.147.0'; }), /must not depend on wrangler/);

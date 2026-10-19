@@ -4,7 +4,7 @@ RenderLab is a standalone, game-engine-independent 2D presentation platform. It 
 
 ## Current state
 
-The repository holds its governance, toolchain and a reference application shell (`index.html`, `src/demo/ui/`). The shell is a React page that mounts no renderer yet. The renderer, asset pipeline and adapters arrive through the tasks in [implementation_plan.md](../implementation_plan.md), in specification order. Each task updates this document when it adds a boundary or module.
+The repository holds its governance, its toolchain, the renderer-neutral core contracts (`src/core/`, RLDR-002) and a reference application shell (`index.html`, `src/demo/ui/`). The shell is a React page that mounts no renderer yet. The renderer, asset pipeline and adapters arrive through the tasks in [implementation_plan.md](../implementation_plan.md), in specification order. Each task updates this document when it adds a boundary or module.
 
 ## Data flow
 
@@ -31,11 +31,42 @@ The planned source layout follows the specification's §5:
 | `src/diagnostics/` | Metrics, profiling, visual parity | RLDR-017 to RLDR-020 |
 | `src/demo/` | Reference application UI and scenes | RLDR-001 (shell), RLDR-018 |
 
+## Scene model
+
+`src/core/scene/` describes what should appear, never how a GPU draws it (§7, §13):
+
+- **Resources** are descriptors (`texture`, `tileset`, `rig`, `animation`, `skin`, `palette`, `equipment`, `effect`) keyed by stable IDs. Objects name them, and the store keeps a reference count per resource, so an owner knows when one can be released. A renderer resolves descriptors to GPU resources; the model never holds GPU objects.
+- **Layers** form a tree. Siblings draw in ascending `order`, which must be unique among them, and a parent draws before its children (`layerDrawOrder`). `role` is an open, informational tag through which MapLab's own layer kinds pass. It never decides order, so MapLab's layer model is not forced into a fixed enumeration. `space`, `parallax`, `opacity` and `occlusionFade` carry MapLab's presentation fields.
+- **Objects** are sprites, sparse 32×32 tile chunks (MapLab's cell encoding: a tile, quarter turns and mirroring), RigLab characters (rig, animation state, appearance, and articulated or baked presentation), particle emitters and effects. Within a layer they draw by `sortKey`, then by ID. `static` content changes only through explicit scene changes; tile chunks are always static.
+- **Units.** World units are X right and Y down. Rotations are degrees, positive clockwise on screen. Authored values are kept exactly as given.
+- **Traceability.** Every layer, object and resource keeps its `source` (authority, source ID and prefab expansion path). RenderLab never mints authoritative world identities.
+
+A `SceneStore` owns one scene and changes only through atomic deltas: all of a delta's changes apply, or none do and a `ContractError` names every failure by path. A delta returns a `SceneDirty` that lists exactly the added, updated and removed objects, the dirty tile chunks, layers and resources, and whether the camera moved. Renderers update only those, and a cell edit dirties only its own chunk. Records are validated as closed shapes, so unknown fields are errors, then copied and frozen on entry. Two stores therefore never share mutable state, callers cannot change a store through retained references, and snapshots never change after they are taken. The same definition and delta sequence always yield the same snapshot; `canonicalJson` gives identical text for equal data.
+
+`src/core/timeline/` holds the animation presentation state (clip, entry tick, facing, pause) and the `PresentationSnapshot` a game hands RenderLab each fixed tick (§14). `acceptSnapshot` validates a snapshot and returns a frozen copy, so presentation can never write back into game state. `src/core/camera/` holds the camera state that RLDR-005's camera math will drive.
+
+## Renderer lifecycle
+
+`src/core/lifecycle/` defines the `RendererRuntime` contract every backend implements. It refines the specification's §6.2 proposal: scene changes arrive as atomic deltas, and game state as accepted snapshots. It also defines `RendererDiagnostics`, in which every measurement says whether it was measured, counted or estimated. `RendererLifecycle` is the state machine runtimes drive:
+
+| From | Event | To |
+| --- | --- | --- |
+| created | initialize | initializing |
+| initializing | initialized, or initialize-failed | ready, or failed |
+| ready | mount | mounted |
+| mounted | mount (replaces the scene), or unmount | mounted, or ready |
+| ready or mounted | lose | lost |
+| lost | restore, or restore-failed | mounted if a scene was mounted, else ready; or failed |
+| any state but destroyed | destroy | destroyed |
+
+`update`, `applySceneDelta` and `render` need a mounted scene. `resize` also works while the device is lost, so the size is kept for the restore. Every other call fails with a `LifecycleError` that says why, so no invalid GPU command is issued.
+
 ## Dependency rules
 
-These rules come from the specification's §5. RLDR-002 makes `npm run check` enforce the core rules mechanically; until then they bind every change by review.
+These rules come from the specification's §5. `npm run check` enforces the first three mechanically: `scripts/check-boundaries.mjs` checks every module's imports, and `tsconfig.core.json` compiles `src/core/` with no DOM library and no Node types. The rest bind every change by review until their tasks add checks.
 
-- Core contracts never import PixiJS, React or DOM APIs.
+- Core contracts never import PixiJS, React or DOM APIs; `src/core/` imports only modules inside itself.
+- PixiJS is imported only under `src/render/`, and React only under `src/demo/`.
 - Simulation adapters never depend on the browser DOM.
 - MapLab and RigLab adapters never import editor code.
 - GPU-specific code stays inside renderer implementations.

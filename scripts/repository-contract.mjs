@@ -23,7 +23,7 @@ export const SPECIFICATION = Object.freeze({
 export const WORKFLOWS = Object.freeze(['ci.yml']);
 
 export const REQUIRED_SCRIPTS = Object.freeze([
-  'start', 'dev', 'build', 'preview', 'typecheck', 'test', 'test:browser', 'check', 'check:change', 'check:patch',
+  'start', 'dev', 'build', 'preview', 'typecheck', 'test', 'test:browser', 'check', 'check:boundaries', 'check:change', 'check:patch',
   'check:repository', 'check:workflow-shell', 'test:contracts', 'test:plan-queue', 'test:github-settings',
   'verify:github-settings', 'apply:github-settings', 'audit:dependencies',
 ]);
@@ -72,6 +72,10 @@ export function validatePackage(pkg, lock) {
     failures.push('dependency advisory gate must fail on high-severity advisories');
   }
   if (pkg.scripts?.['test:browser'] !== 'playwright test') failures.push('browser tests must run through playwright test');
+  if (!/\bnpm run check:boundaries\b/.test(pkg.scripts?.check ?? '')) failures.push('npm run check must enforce the architecture boundaries');
+  if (!/\btsc -p tsconfig\.core\.json\b/.test(pkg.scripts?.typecheck ?? '')) {
+    failures.push('npm run typecheck must compile src/core/ without the DOM through tsconfig.core.json');
+  }
   if (OUTSIDE_CHECK.test(pkg.scripts?.check ?? '')) {
     failures.push('npm run check must stay credential-free, offline and independent of downloaded browsers');
   }
@@ -164,7 +168,8 @@ export function validateSpecification(bytes) {
 export const REQUIRED_AUTHORITIES = Object.freeze([
   'README.md', 'AGENTS.md', 'CONTRIBUTING.md', 'LICENSE', 'SECURITY.md', 'implementation_plan.md',
   'docs/ARCHITECTURE.md', 'docs/CHANGE-MANAGEMENT.md', 'docs/RELEASE-MANAGEMENT.md', 'docs/TESTING.md',
-  SPECIFICATION.path, '.node-version', '.npmrc', 'package.json', 'package-lock.json', 'tsconfig.json',
+  SPECIFICATION.path, '.node-version', '.npmrc', 'package.json', 'package-lock.json', 'tsconfig.json', 'tsconfig.core.json',
+  'scripts/check-boundaries.mjs',
   'vite.config.ts', 'vitest.config.ts', 'playwright.config.ts', '.github/pull_request_template.md',
   'config/github-repository-settings.json', ...WORKFLOWS.map((file) => `.github/workflows/${file}`),
 ]);

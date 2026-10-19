@@ -4,14 +4,15 @@ RenderLab tests in layers. Each layer has one command, and the required `verify`
 
 | Layer | Command | Runs | Needs |
 | --- | --- | --- | --- |
-| Governance and contracts | `npm run test:contracts` | `node --test tests/contracts/*.test.mjs`: change identity, plan queue, specification pin, workflows, provider policy, dev launcher | Node only |
-| Unit | `npm test` | Vitest in the node environment over `tests/**/*.test.ts` | Node only |
-| Types | `npm run typecheck` | `tsc --noEmit` over sources, tests and configs | Node only |
+| Governance and contracts | `npm run test:contracts` | `node --test tests/contracts/*.test.mjs`: change identity, plan queue, specification pin, workflows, provider policy, architecture boundaries, dev launcher | Node only |
+| Architecture boundaries | `npm run check:boundaries` | The §5 import rules over every module under `src/` | Node only |
+| Unit | `npm test` | Vitest in the node environment over `tests/**/*.test.ts`, including the core scene, lifecycle and snapshot contracts in `tests/core/` | Node only |
+| Types | `npm run typecheck` | `tsc --noEmit` over sources, tests and configs, then `tsc -p tsconfig.core.json` over `src/core/` with no DOM library or Node types | Node only |
 | Build | `npm run build` | Production `vite build` | Node only |
 | Browser | `npm run test:browser` | Playwright against the production build in Chromium and WebKit | Browsers installed once with `npx playwright install chromium webkit` |
 | Dependency advisories | `npm run audit:dependencies` | `npm audit --audit-level=high` (the `security` check) | Network |
 
-`npm run check` is the canonical offline gate. It runs the plan-queue, workflow-shell, repository, contract, type, unit, build and change-identity checks, with no credentials, no network and no downloaded browsers. `npm run test:browser` stays outside it only because it needs browser binaries. CI installs them after `npm run check` and then runs the browser tests in the same required `verify` job, so a PR cannot merge without them. Locally, run both:
+`npm run check` is the canonical offline gate. It runs the plan-queue, workflow-shell, repository, boundary, contract, type, unit, build and change-identity checks, with no credentials, no network and no downloaded browsers. `npm run test:browser` stays outside it only because it needs browser binaries. CI installs them after `npm run check` and then runs the browser tests in the same required `verify` job, so a PR cannot merge without them. Locally, run both:
 
 ```bash
 cd ~/Documents/GitHub/RenderLab && npm ci && npm run check && npm run test:browser

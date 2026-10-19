@@ -1,0 +1,26 @@
+:root {
+  color-scheme: dark;
+  font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+  background: #101114;
+  color: #e7e7ea;
+}
+
+body {
+  margin: 0;
+}
+
+.shell {
+  max-width: 44rem;
+  margin: 0 auto;
+  padding: 3rem 1.5rem;
+  line-height: 1.5;
+}
+
+.shell h1 {
+  margin: 0 0 0.75rem;
+  font-size: 1.75rem;
+}
+
+.shell [role="status"] {
+  color: #a9abb3;
+}

@@ -1,0 +1,50 @@
+{
+  "name": "renderlab",
+  "version": "0.1.0",
+  "private": true,
+  "license": "MIT",
+  "description": "GPU-native 2D game renderer on PixiJS v8 (WebGL2 and WebGPU) for MapLab worlds and RigLab characters.",
+  "type": "module",
+  "packageManager": "npm@12.1.0",
+  "engines": {
+    "node": "26.x",
+    "npm": "12.x"
+  },
+  "scripts": {
+    "start": "npm run dev",
+    "dev": "node scripts/dev.mjs",
+    "build": "vite build",
+    "preview": "vite preview",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:browser": "playwright test",
+    "test:contracts": "node --test tests/contracts/*.test.mjs",
+    "test:plan-queue": "node scripts/check-portfolio-contract.mjs",
+    "test:github-settings": "node --test tests/contracts/github-settings.test.mjs",
+    "check": "npm run test:plan-queue && npm run check:workflow-shell && npm run check:repository && npm run test:contracts && npm run typecheck && npm run test && npm run build && npm run check:change",
+    "check:change": "node scripts/check-change.mjs",
+    "check:patch": "node scripts/check-patch.mjs",
+    "check:repository": "node scripts/check-repository.mjs",
+    "check:workflow-shell": "node scripts/check-workflow-shell.mjs",
+    "audit:dependencies": "npm audit --audit-level=high",
+    "verify:github-settings": "node scripts/verify-github-repository-settings.mjs",
+    "apply:github-settings": "node scripts/apply-github-repository-settings.mjs"
+  },
+  "dependencies": {
+    "react": "19.3.0",
+    "react-dom": "19.3.0"
+  },
+  "allowScripts": {
+    "fsevents@2.3.3": true
+  },
+  "devDependencies": {
+    "@playwright/test": "1.64.1",
+    "@types/node": "26.6.5",
+    "@types/react": "19.3.0",
+    "@types/react-dom": "19.3.0",
+    "typescript": "7.0.2",
+    "vite": "8.3.1",
+    "vitest": "5.0.2"
+  }
+}

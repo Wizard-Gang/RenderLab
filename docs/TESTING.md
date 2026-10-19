@@ -1,0 +1,26 @@
+# Testing
+
+RenderLab tests in layers. Each layer has one command, and the required `verify` CI check runs all of them on the exact PR head.
+
+| Layer | Command | Runs | Needs |
+| --- | --- | --- | --- |
+| Governance and contracts | `npm run test:contracts` | `node --test tests/contracts/*.test.mjs`: change identity, plan queue, specification pin, workflows, provider policy, dev launcher | Node only |
+| Unit | `npm test` | Vitest in the node environment over `tests/**/*.test.ts` | Node only |
+| Types | `npm run typecheck` | `tsc --noEmit` over sources, tests and configs | Node only |
+| Build | `npm run build` | Production `vite build` | Node only |
+| Browser | `npm run test:browser` | Playwright against the production build in Chromium and WebKit | Browsers installed once with `npx playwright install chromium webkit` |
+| Dependency advisories | `npm run audit:dependencies` | `npm audit --audit-level=high` (the `security` check) | Network |
+
+`npm run check` is the canonical offline gate. It runs the plan-queue, workflow-shell, repository, contract, type, unit, build and change-identity checks, with no credentials, no network and no downloaded browsers. `npm run test:browser` stays outside it only because it needs browser binaries. CI installs them after `npm run check` and then runs the browser tests in the same required `verify` job, so a PR cannot merge without them. Locally, run both:
+
+```bash
+cd ~/Documents/GitHub/RenderLab && npm ci && npm run check && npm run test:browser
+```
+
+## Policies
+
+- **Browsers.** Chromium covers Chrome and Edge, and WebKit stands in for Safari, the owner's browser. Later tasks add Firefox and real-device coverage where the specification's §17 requires it.
+- **GPU capabilities.** A test that needs WebGL2 or WebGPU records whether the browser under test provides it. An unavailable capability is reported as unavailable, never skipped silently or counted as a pass (§19).
+- **Determinism.** Unit tests that use randomness take a fixed seed. Snapshot and asset tests compare exact bytes only where the contract guarantees determinism, and document their tolerance everywhere else.
+- **Fixtures.** MapLab and RigLab fixtures are copies of published exports and conformance cases, pinned by source repository, commit, path and SHA-256 (from RLDR-006).
+- **Visual regression and performance** suites arrive in RLDR-019 and RLDR-020. Performance results are recorded evidence with a benchmark identity, never unqualified machine-specific assertions in CI.

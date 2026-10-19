@@ -1,0 +1,20 @@
+node_modules/
+dist/
+# The dev launcher's record of the server it started.
+tmp/
+*.tsbuildinfo
+.DS_Store
+*.log
+
+# Playwright run output.
+test-results/
+playwright-report/
+blob-report/
+
+# Credential-shaped local files stay ignored; RenderLab needs no credentials to develop.
+.env
+.env.*
+!.env.example
+
+# Local agent tooling.
+.claude/

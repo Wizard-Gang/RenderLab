@@ -7,11 +7,9 @@ import { defineConfig, devices } from "@playwright/test";
 const root = fileURLToPath(new URL(".", import.meta.url));
 export const PREVIEW_PORT = 5194;
 // Headless Chromium has no WebGPU adapter by default. These flags give it SwiftShader for WebGPU (through Vulkan, which
-// it needs to present to a canvas) and for WebGL2. Headless Linux has no window surface for Vulkan to present to.
-const CHROMIUM_GPU_ARGS = [
-  "--enable-unsafe-webgpu", "--enable-features=Vulkan", "--use-angle=swiftshader",
-  ...(process.platform === "linux" ? ["--disable-vulkan-surface"] : []),
-];
+// it needs to present to a canvas on macOS) and for WebGL2. On headless Linux the SwiftShader device still cannot
+// present, with or without --disable-vulkan-surface, so CI reports WebGPU as not started (see docs/GPU-BACKENDS.md).
+const CHROMIUM_GPU_ARGS = ["--enable-unsafe-webgpu", "--enable-features=Vulkan", "--use-angle=swiftshader"];
 
 export default defineConfig({
   testDir: "tests/browser",

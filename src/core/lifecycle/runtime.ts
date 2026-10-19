@@ -3,6 +3,7 @@
 // game state as validated presentation snapshots.
 import type { BackendAttempt } from "../capabilities/selection";
 import type { Capabilities } from "../capabilities/model";
+import type { CameraView } from "../camera/view";
 import type { Failures } from "../contracts/errors";
 import { checkFinite, isRecord } from "../contracts/values";
 import type { SceneDelta, SceneDirty } from "../scene/delta";
@@ -51,6 +52,8 @@ export interface RendererDiagnostics {
   };
   /** What the probe found the browser and device can do; null before probing. */
   readonly capabilities: Capabilities | null;
+  /** The camera view last applied (after bounds and the pixel policy); null with no scene mounted. */
+  readonly view: CameraView | null;
   readonly frames: {
     readonly rendered: number;
     readonly fps: Metric | null;
@@ -69,6 +72,7 @@ export function emptyDiagnostics(requested: RendererBackend, state: LifecycleSta
     state,
     backend: { requested, active: null, failure: null, attempts: [] },
     capabilities: null,
+    view: null,
     frames: { rendered: 0, fps: null, averageFrameMs: null, p95FrameMs: null, updateCpuMs: null },
     scene: { id: null, revision: null, visibleChunks: 0, visibleCharacters: 0, activeParticles: 0 },
     gpu: { contexts: 0, drawCalls: null, textures: 0, textureBytes: null },

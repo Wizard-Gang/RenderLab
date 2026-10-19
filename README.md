@@ -2,7 +2,7 @@
 
 RenderLab is a reusable, GPU-native 2D rendering platform for browser games. It presents worlds authored in [MapLab](https://github.com/Wizard-Gang/MapLab) and characters and animation authored in [RigLab](https://github.com/Wizard-Gang/RigLab) through [PixiJS v8](https://pixijs.com/), with WebGL2 as the initial production backend and WebGPU as a fully supported, independently validated backend. It is not a game engine. A separate game or reference simulation owns authoritative state, and RenderLab only presents it: **author once, compile once, render anywhere.**
 
-The [governing specification](docs/specifications/2026-10-18-renderlab.md) defines the platform and its baseline tasks, `RLDR-001`…`RLDR-021`. Governance, the toolchain, CI, the renderer-neutral core contracts (scene model, scene store, presentation snapshots and renderer lifecycle), the PixiJS v8 runtime on WebGL2 and WebGPU with capability-based backend selection, and a reference application are in place. The renderer, asset pipeline and adapters follow in specification order through the [implementation plan](implementation_plan.md). [Architecture](docs/ARCHITECTURE.md) records what exists and the boundaries it enforces. [Testing](docs/TESTING.md) describes the test layers.
+The [governing specification](docs/specifications/2026-10-18-renderlab.md) defines the platform and its baseline tasks, `RLDR-001`…`RLDR-021`. Governance, the toolchain, CI, the renderer-neutral core contracts (scene model, scene store, presentation snapshots and renderer lifecycle), the PixiJS v8 runtime on WebGL2 and WebGPU with capability-based backend selection, the 2D camera with smooth and strict-pixel policies, and a reference application are in place. The renderer, asset pipeline and adapters follow in specification order through the [implementation plan](implementation_plan.md). [Architecture](docs/ARCHITECTURE.md) records what exists and the boundaries it enforces. [Testing](docs/TESTING.md) describes the test layers.
 
 Controlled changes use the `RLDR-###` namespace and the title and body format in [Change management](docs/CHANGE-MANAGEMENT.md). Required PR checks are `verify`, `change-id` and `security` on the exact head. The committed [GitHub settings](config/github-repository-settings.json) require:
 
@@ -21,7 +21,14 @@ Use Node 26.10.0 and npm 12.1.0, matching the repository pins.
 cd ~/Documents/GitHub/RenderLab && npm ci && npm start
 ```
 
-`npm start` runs `npm run dev`, a managed launcher (`scripts/dev.mjs`) that serves the reference application at <http://localhost:5184> and opens it in the browser. The application draws the reference scene and shows the runtime's diagnostics and the probed capabilities. The **Backend** menu picks Auto (WebGL2 first, WebGPU as fallback), WebGL2 or WebGPU; `?backend=webgpu` in the URL does the same, and `?prefer=webgpu` makes Auto try WebGPU first. **Restart renderer** tears the runtime down and mounts it again. A backend that cannot run shows why instead of a blank canvas. Local development needs no account, credential, game server or network service. Each run follows the same lifecycle as the RigLab, SharkTank and WizardGang launchers:
+`npm start` runs `npm run dev`, a managed launcher (`scripts/dev.mjs`) that serves the reference application at <http://localhost:5184> and opens it in the browser. The application draws a demo scene and shows the runtime's diagnostics and the probed capabilities. To move the camera, drag the scene, scroll over it, or focus it and use the arrow keys and **+** or **−**. **Reset view** brings the camera back. Every menu is also a URL parameter, so a view can be linked:
+
+| Menu | URL parameter | Choices |
+| --- | --- | --- |
+| **Backend** | `?backend=` | Auto (WebGL2 first, WebGPU as fallback), WebGL2 or WebGPU; `?prefer=webgpu` makes Auto try WebGPU first |
+| **Scene** | `?scene=` | The reference scene, or a pixel grid |
+| **Pixels** | `?pixel=` | Smooth or strict pixel |
+| **View** | `?view=` | Canvas size: 480×270, 640×360 or 320×180 | **Restart renderer** tears the runtime down and mounts it again. A backend that cannot run shows why instead of a blank canvas. Local development needs no account, credential, game server or network service. Each run follows the same lifecycle as the RigLab, SharkTank and WizardGang launchers:
 
 1. **Teardown.** Stop the server this checkout last started, and any other RenderLab Vite still on the port, whether from this checkout or one of its worktrees. A port held by anything else is refused, and the message names the process. RenderLab never stops a process it cannot prove is its own.
 2. **Reset.** Clear `dist/`, `node_modules/.vite/` and `tmp/dev/`.

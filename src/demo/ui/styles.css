@@ -35,6 +35,19 @@ body {
   display: block;
 }
 
+.renderer-host {
+  cursor: grab;
+  touch-action: none;
+}
+
+.renderer-host:active {
+  cursor: grabbing;
+}
+
+.renderer-host:focus-visible {
+  outline: 2px solid #29adff;
+}
+
 .controls {
   display: flex;
   flex-wrap: wrap;

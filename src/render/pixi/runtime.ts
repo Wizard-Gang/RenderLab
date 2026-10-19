@@ -2,9 +2,10 @@
 // Scenes arrive as the core model and change through atomic deltas; PixiJS objects never leave src/render/.
 import { BufferImageSource, Container, Texture } from "pixi.js";
 import {
-  acceptSnapshot, BackendSelectionError, checkViewport, ContractError, emptyDiagnostics, Failures, LifecycleError,
-  maxTextureEdge, planBackends, RendererLifecycle, SceneStore, selectBackend,
-  type ActiveBackend, type BackendAttempt, type Capabilities, type PresentationSnapshot, type RecoveryEvent,
+  acceptSnapshot, BackendSelectionError, checkViewport, computeView, ContractError, emptyDiagnostics, Failures,
+  LifecycleError, maxTextureEdge, planBackends, RendererLifecycle, SceneStore, selectBackend, SMOOTH_SNAPPED,
+  type ActiveBackend, type BackendAttempt, type CameraView, type Capabilities, type PixelPolicy, type PresentationSnapshot,
+  type RecoveryEvent,
   type RendererBackend, type RendererDiagnostics, type RendererRuntime, type ResourceId, type SceneChange,
   type SceneDefinition, type SceneDelta, type SceneDirty, type Viewport,
 } from "../../core";
@@ -27,6 +28,8 @@ export interface PixiRuntimeOptions {
   readonly autoPreference?: ActiveBackend;
   /** Capabilities probed in advance; the runtime probes them itself when omitted. */
   readonly capabilities?: Capabilities;
+  /** How the camera meets the device pixel grid; smooth with a snapped origin by default (specification §10). */
+  readonly pixelPolicy?: PixelPolicy;
 }
 
 interface TextureEntry {
@@ -80,6 +83,7 @@ export class PixiRuntime implements RendererRuntime {
   #contexts = 0;
   #stage: Container | null = null;
   #graph: PixiSceneGraph | null = null;
+  #view: CameraView | null = null;
   #textures = new Map<ResourceId, TextureEntry>();
   #frames = 0;
   readonly #recoveries: RecoveryEvent[] = [];
@@ -154,6 +158,7 @@ export class PixiRuntime implements RendererRuntime {
     for (const [id, entry] of this.#textures) if (!loaded.has(id)) entry.texture.destroy(true);
     this.#textures = loaded;
     this.#graph = graph;
+    this.#applyView();
     (this.#stage as Container).addChild(graph.root);
     this.#lifecycle.transition("mount");
   }
@@ -165,6 +170,7 @@ export class PixiRuntime implements RendererRuntime {
     const graph = this.#graph as PixiSceneGraph;
     const dirty = graph.store.apply(delta);
     graph.apply(dirty);
+    if (dirty.camera) this.#applyView();
     for (const id of dirty.resources.removed) {
       this.#textures.get(id)?.texture.destroy(true);
       this.#textures.delete(id);
@@ -192,6 +198,7 @@ export class PixiRuntime implements RendererRuntime {
     this.#lifecycle.assert("resize");
     this.#viewport = { ...viewport };
     if (this.#lifecycle.state !== "lost") this.#started?.renderer.resize(viewport.width, viewport.height, viewport.dpr);
+    this.#applyView();
   }
 
   getDiagnostics(): RendererDiagnostics {
@@ -202,6 +209,7 @@ export class PixiRuntime implements RendererRuntime {
       ...base,
       backend: { requested: this.#requested, active: this.#started?.backend ?? null, failure: this.#lifecycle.failure, attempts: [...this.#attempts] },
       capabilities: this.#capabilities,
+      view: this.#view,
       frames: { ...base.frames, rendered: this.#frames },
       scene: { ...base.scene, id: this.#graph?.store.id ?? null, revision: this.#graph?.store.revision ?? null },
       gpu: {
@@ -217,6 +225,7 @@ export class PixiRuntime implements RendererRuntime {
     this.#lifecycle.transition("destroy");
     this.#graph?.destroy();
     this.#graph = null;
+    this.#view = null;
     for (const entry of this.#textures.values()) entry.texture.destroy(true);
     this.#textures = new Map();
     this.#stage?.destroy({ children: true });
@@ -224,6 +233,13 @@ export class PixiRuntime implements RendererRuntime {
     const started = this.#started;
     this.#started = null;
     if (started) this.#contexts = (await started.dispose()) ? 0 : 1;
+  }
+
+  /** Recompute the camera view from the scene's camera, the viewport and the pixel policy, and place the layers. */
+  #applyView(): void {
+    if (!this.#graph) return;
+    this.#view = computeView(this.#graph.store.camera, this.#viewport, this.#options.pixelPolicy ?? SMOOTH_SNAPPED);
+    this.#graph.applyView(this.#view);
   }
 
   #lose(detail: string): void {

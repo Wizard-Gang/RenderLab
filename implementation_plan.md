@@ -4,18 +4,6 @@
 
 The tasks below are the remaining baseline tasks reserved by the governing specification, [2026-10-18-renderlab.md](docs/specifications/2026-10-18-renderlab.md) §20, in its order. Each one is delivered by its own controlled PR. Before an adapter task, re-read the live `Wizard-Gang/MapLab` and `Wizard-Gang/RigLab` main branches (§3): their formats can change between sessions, and fixtures copied from them carry a provenance pin.
 
-### RLDR-005 — [FEAT] Add the 2D camera and viewport
-
-- Dependency: RLDR-004 (backend runtime); the math itself needs only RLDR-002.
-- Why: Every world view needs one documented coordinate boundary (§8.4) and strict-pixel alignment (§10).
-- Scope: `src/core/camera/` holds pure camera math in MapLab's X-right/Y-down world units: position, zoom, bounds clamping, smoothed follow, pixel snapping, screen↔world transforms, DPR, resize and aspect handling, an integer-scale strict-pixel policy, and optional seeded presentation-only shake. The render adapter applies the camera to the world container, and the demo gets pan and zoom controls.
-- Non-goals: No parallax composition (RLDR-010) beyond a per-layer factor hook, no MapLab camera zones (RLDR-010), and no adaptive resolution (RLDR-017).
-- Acceptance: Screen→world→screen round trips stay within the declared tolerance across zooms and DPRs. Strict-pixel mode produces only integer output scales and snapped positions. Bounds hold at every aspect ratio.
-- Tests: Seeded Vitest property tests cover transforms, bounds and snapping. A Playwright test resizes, changes DPR and reads back a pixel grid.
-- Validation: The standard set.
-- Documentation: `docs/ARCHITECTURE.md` gains the coordinate conventions and the conversion boundary.
-- Authorities: Specification §8.4, §10, §15.6 (pixel policy precedence); MapLab's coordinate contract on its live main.
-
 ### RLDR-006 — [FEAT] Read asset bundles with manifest and integrity checks
 
 - Dependency: RLDR-005 in queue order; technically RLDR-002's resource handles.

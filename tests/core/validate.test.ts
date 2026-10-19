@@ -36,7 +36,11 @@ describe("scene definition validation", () => {
       "scene.objects[0].tint: must be a 0xRRGGBB colour from 0 to 16777215",
       "scene.objects[0].alpha: must be from 0 to 1",
     ]);
-    expect(failuresOf((scene) => ({ ...scene, camera: { x: 0, y: 0, zoom: 0 } }))).toEqual(["scene.camera.zoom: must be greater than 0"]);
+    expect(failuresOf((scene) => ({ ...scene, camera: { x: 0, y: 0, zoom: 0, bounds: null } }))).toEqual(["scene.camera.zoom: must be greater than 0"]);
+    expect(failuresOf((scene) => ({ ...scene, camera: { x: 0, y: 0, zoom: 1, bounds: { minX: 5, minY: 0, maxX: 5, maxY: 9 } } }))).toEqual([
+      "scene.camera.bounds: must have minX below maxX and minY below maxY",
+    ]);
+    expect(failuresOf((scene) => ({ ...scene, camera: { x: 0, y: 0, zoom: 1 } }))).toEqual(["scene.camera.bounds: is required"]);
   });
 
   it("holds tile chunks to 1024 valid cells and static mobility", () => {

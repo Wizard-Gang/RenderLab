@@ -140,7 +140,9 @@ export class SceneStore {
     }
     const siblings = new Map<string, LayerId>();
     for (const layer of final.values()) {
-      if (layer.parentId !== null && !final.has(layer.parentId)) failures.add(`layer ${layer.id}.parentId`, `names missing layer ${layer.parentId}`);
+      const parent = layer.parentId === null ? null : final.get(layer.parentId);
+      if (layer.parentId !== null && !parent) failures.add(`layer ${layer.id}.parentId`, `names missing layer ${layer.parentId}`);
+      if (parent && parent.space !== layer.space) failures.add(`layer ${layer.id}.space`, `must match its parent ${parent.id}'s space, ${parent.space}`);
       const key = `${layer.parentId ?? ""}\u0000${layer.order}`;
       const other = siblings.get(key);
       if (other !== undefined) failures.add(`layer ${layer.id}.order`, `${layer.order} is already used by sibling layer ${other}`);

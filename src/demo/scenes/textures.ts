@@ -48,6 +48,11 @@ export const REFERENCE_TEXTURES: Readonly<Record<string, TexturePixels>> = Objec
   "tex.crate": fromRows(CRATE, { ".": null, B: PALETTE.border, O: PALETTE.fill, D: PALETTE.shade }),
   // One white texel at alpha 128 of 255.
   "tex.glass": { width: 1, height: 1, rgba: new Uint8Array([255, 255, 255, 128]), filtering: "nearest" },
+  // A 16×16 checkerboard, black where column + row is even: one texel per world unit in the grid scene.
+  "tex.checker": fromRows(
+    Array.from({ length: 16 }, (_, row) => Array.from({ length: 16 }, (_, column) => ((column + row) % 2 ? "W" : "K")).join("")),
+    { W: PALETTE.white, K: PALETTE.black },
+  ),
 });
 
 export const referenceTextures: TextureProvider = {

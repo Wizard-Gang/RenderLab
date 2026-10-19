@@ -58,7 +58,8 @@ describe("RendererLifecycle", () => {
   it("starts diagnostics empty, with no estimate posing as a measurement", () => {
     const diagnostics = emptyDiagnostics("auto");
     expect(diagnostics.state).toBe("created");
-    expect(diagnostics.backend).toEqual({ requested: "auto", active: null, failure: null });
+    expect(diagnostics.backend).toEqual({ requested: "auto", active: null, failure: null, attempts: [] });
+    expect(diagnostics.capabilities).toBeNull();
     expect([diagnostics.frames.fps, diagnostics.gpu.drawCalls, diagnostics.gpu.textureBytes]).toEqual([null, null, null]);
     expect([diagnostics.gpu.contexts, diagnostics.gpu.textures]).toEqual([0, 0]);
   });

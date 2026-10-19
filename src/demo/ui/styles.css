@@ -35,9 +35,21 @@ body {
   display: block;
 }
 
-.renderer button {
-  font: inherit;
+.controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem 1.25rem;
+  align-items: center;
   margin: 0 0 1rem;
+}
+
+.controls button,
+.controls select {
+  font: inherit;
+}
+
+.diagnostics + .diagnostics {
+  margin-top: 1rem;
 }
 
 .diagnostics {

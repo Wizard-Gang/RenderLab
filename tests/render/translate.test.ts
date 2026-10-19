@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { checkTexturePixels, MAX_TEXTURE_EDGE } from "../../src/render";
+import { checkTexturePixels, MAX_TEXTURE_EDGE, premultiplied } from "../../src/render";
 import { drawRanks, layerDisplay, spriteDisplay, toRadians } from "../../src/render/pixi/translate";
 import { layer, sprite } from "../core/fixtures";
 
@@ -38,5 +38,19 @@ describe("texture pixels", () => {
     );
     expect(() => checkTexturePixels("tex.short", pixels(2, 2, 15))).toThrow(/rgba: must hold width \* height \* 4 = 16 bytes, not 15/);
     expect(() => checkTexturePixels("tex.blur", { ...pixels(1, 1), filtering: "bilinear" as never })).toThrow(/filtering: must be "nearest" or "linear"/);
+  });
+});
+
+describe("premultiplied alpha", () => {
+  it("multiplies colour by alpha once, rounding to nearest, and keeps alpha", () => {
+    const input = new Uint8Array([255, 255, 255, 128, 10, 20, 30, 0, 200, 100, 50, 255, 127, 255, 1, 128]);
+    expect([...premultiplied(input)]).toEqual([128, 128, 128, 128, 0, 0, 0, 0, 200, 100, 50, 255, 64, 128, 1, 128]);
+    expect([...input.subarray(0, 4)]).toEqual([255, 255, 255, 128]);
+  });
+
+  it("refuses textures over a device's probed limit", () => {
+    expect(() => checkTexturePixels("tex.big", { width: 4096, height: 1, rgba: new Uint8Array(4096 * 4), filtering: "linear" }, 2048))
+      .toThrow(/width: must be a whole number from 1 to 2048/);
+    expect(checkTexturePixels("tex.big", { width: 4096, height: 1, rgba: new Uint8Array(4096 * 4), filtering: "linear" }, 8192).width).toBe(4096);
   });
 });

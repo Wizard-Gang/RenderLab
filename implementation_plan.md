@@ -4,18 +4,6 @@
 
 The tasks below are the remaining baseline tasks reserved by the governing specification, [2026-10-18-renderlab.md](docs/specifications/2026-10-18-renderlab.md) §20, in its order. Each one is delivered by its own controlled PR. Before an adapter task, re-read the live `Wizard-Gang/MapLab` and `Wizard-Gang/RigLab` main branches (§3): their formats can change between sessions, and fixtures copied from them carry a provenance pin.
 
-### RLDR-004 — [FEAT] Add the WebGPU backend and capability selection
-
-- Dependency: RLDR-003 (PixiJS adapter).
-- Why: WebGPU is a first-class backend developed alongside WebGL2 (§6, §16), and the backend choice must come from real capability probes.
-- Scope: Add a capability model under `src/core/capabilities/` and probes under `src/render/backends/` for WebGL2, the WebGPU adapter and device, limits, texture formats, DPR, reduced motion and secure context, with no user-agent sniffing. Support `RendererBackend = "auto" | "webgl2" | "webgpu"`, with `auto` preferring WebGL2. A WebGPU initialization failure captures its reason, releases partial resources, and falls back only when fallback is permitted. An explicit `webgpu` request never downgrades silently. Diagnostics report the requested backend, the selected backend and any failure reasons, and the demo gets a backend selector.
-- Non-goals: No WebGPU-only effects or compute (the §16 advanced list), no device-loss recovery beyond reporting it (RLDR-017), and no change to the `auto` preference.
-- Acceptance: Both backends render the reference scene where supported. A forced WebGPU failure under `auto` falls back to WebGL2 and records the reason. Under `webgpu` it reports the failure and stays failed. Capability code never reads `navigator.userAgent`.
-- Tests: Vitest covers the selection and fallback state machine with fake probes. Playwright records each browser's WebGPU availability, renders on every available backend and forces the failure paths. A check flags user-agent reads in capability code.
-- Validation: The standard set. Browser runs report WebGPU as unavailable, explicitly, where the headless browser lacks it.
-- Documentation: `docs/GPU-BACKENDS.md` covers selection, fallback and the initial compatibility matrix.
-- Authorities: Specification §6.1–6.5, §16, §17.
-
 ### RLDR-005 — [FEAT] Add the 2D camera and viewport
 
 - Dependency: RLDR-004 (backend runtime); the math itself needs only RLDR-002.

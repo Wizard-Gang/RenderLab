@@ -7,7 +7,7 @@ import { CRATE, fromRows, PALETTE, REFERENCE_TEXTURES, referenceTextures } from 
 describe("reference scene", () => {
   it("is a valid scene of sprites only, so the WebGL2 runtime presents all of it", () => {
     const snapshot = new SceneStore(referenceScene()).snapshot();
-    expect(snapshot.objects).toHaveLength(10);
+    expect(snapshot.objects).toHaveLength(11);
     expect(snapshot.objects.every((object) => SUPPORTED_KINDS.includes(object.kind))).toBe(true);
     expect(snapshot.layers.map((layer) => layer.id)).toEqual(["backdrop", "world", "world.props", "world.figures", "hud"]);
   });

@@ -4,7 +4,7 @@ RenderLab is a standalone, game-engine-independent 2D presentation platform. It 
 
 ## Current state
 
-The repository holds its governance, its toolchain, the renderer-neutral core contracts (`src/core/`, RLDR-002), the PixiJS v8 WebGL2 runtime (`src/render/`, RLDR-003) and the reference application (`index.html`, `src/demo/`). The application draws a generated reference scene through WebGL2 and shows the runtime's diagnostics. The renderer, asset pipeline and adapters arrive through the tasks in [implementation_plan.md](../implementation_plan.md), in specification order. Each task updates this document when it adds a boundary or module.
+The repository holds its governance, its toolchain, the renderer-neutral core contracts (`src/core/`, RLDR-002), the PixiJS v8 runtime on WebGL2 and WebGPU with capability-based backend selection (`src/render/`, RLDR-003 and RLDR-004), and the reference application (`index.html`, `src/demo/`). The application draws a generated reference scene on the chosen backend and shows the runtime's diagnostics and the probed capabilities. The renderer, asset pipeline and adapters arrive through the tasks in [implementation_plan.md](../implementation_plan.md), in specification order. Each task updates this document when it adds a boundary or module.
 
 ## Data flow
 
@@ -24,10 +24,10 @@ The planned source layout follows the specification's §5:
 
 | Area | Responsibility | Lands in |
 | --- | --- | --- |
-| `src/core/` | Renderer-neutral contracts: scene model, camera, timeline, lifecycle, capabilities | RLDR-002, RLDR-004, RLDR-005 |
+| `src/core/` | Renderer-neutral contracts: scene model, camera, timeline, lifecycle, capabilities and backend selection | RLDR-002, RLDR-004, RLDR-005 |
 | `src/assets/` | Bundle reading, integrity, loading, caching, atlases, compilation | RLDR-006, RLDR-007 |
 | `src/adapters/` | MapLab and RigLab readers; the replaceable simulation bridge | RLDR-008, RLDR-011, RLDR-015 |
-| `src/render/` | PixiJS v8 runtimes (WebGL2 since RLDR-003), backends, terrain, sprites, skeletal, particles, effects, layers | RLDR-003 onward |
+| `src/render/` | The PixiJS v8 runtime, capability probes and backends (WebGL2 and WebGPU), the scene graph; later terrain, skeletal, particles, effects | RLDR-003 onward |
 | `src/diagnostics/` | Metrics, profiling, visual parity | RLDR-017 to RLDR-020 |
 | `src/demo/` | Reference application UI and scenes (the generated reference scene since RLDR-003) | RLDR-001 (shell), RLDR-003, RLDR-018 |
 
@@ -63,14 +63,15 @@ A `SceneStore` owns one scene and changes only through atomic deltas: all of a d
 
 ## Renderers
 
-`src/render/` implements `RendererRuntime` on PixiJS v8. The WebGL2 runtime presents sprites from a mounted scene, updates only what each delta dirties, and refuses content it cannot present yet. [GPU backends](GPU-BACKENDS.md) describes its context, texture, teardown and context-loss behaviour. The reference application (`src/demo/`) reaches PixiJS only through `src/render/`. It builds the runtime in a React effect and draws on `requestAnimationFrame`; React never holds scene objects.
+`src/render/` implements `RendererRuntime` on PixiJS v8. The runtime probes capabilities, picks a backend under the core selection rules (`auto` prefers WebGL2 and may fall back to WebGPU; an explicit backend never downgrades), presents sprites from a mounted scene, updates only what each delta dirties, and refuses content it cannot present yet. [GPU backends](GPU-BACKENDS.md) describes selection, both backends, alpha parity, teardown and loss. The reference application (`src/demo/`) reaches PixiJS only through `src/render/`. It builds the runtime in a React effect and draws on `requestAnimationFrame`; React never holds scene objects.
 
 ## Dependency rules
 
-These rules come from the specification's §5. `npm run check` enforces the first three mechanically: `scripts/check-boundaries.mjs` checks every module's imports, and `tsconfig.core.json` compiles `src/core/` with no DOM library and no Node types. The rest bind every change by review until their tasks add checks.
+These rules come from the specification's §5 and §6.3. `npm run check` enforces the first four mechanically: `scripts/check-boundaries.mjs` checks every module's imports, and `tsconfig.core.json` compiles `src/core/` with no DOM library and no Node types. The rest bind every change by review until their tasks add checks.
 
 - Core contracts never import PixiJS, React or DOM APIs; `src/core/` imports only modules inside itself.
 - PixiJS is imported only under `src/render/`, and React only under `src/demo/`.
+- No source reads the user agent; capabilities come from probing the graphics APIs.
 - Simulation adapters never depend on the browser DOM.
 - MapLab and RigLab adapters never import editor code.
 - GPU-specific code stays inside renderer implementations.

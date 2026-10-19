@@ -5,9 +5,9 @@ export default defineConfig({
   build: {
     outDir: "dist",
     emptyOutDir: true,
-    // PixiJS v8 makes the main chunk about 554 kB minified (165 kB gzip) at 8.22.0. The budget sits just above it, so
-    // growth past it is noticed instead of the warning being noise.
-    chunkSizeWarningLimit: 600,
+    // Each backend's PixiJS renderer is its own chunk, loaded on demand; the largest chunk, the shared application and
+    // PixiJS core, is about 260 kB minified (82 kB gzip) at 8.22.0. The budget sits just above it, so growth is noticed.
+    chunkSizeWarningLimit: 300,
   },
   publicDir: false,
   server: {

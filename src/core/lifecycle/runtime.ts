@@ -1,6 +1,8 @@
 // The renderer-neutral runtime contract (specification §6.2). Backends implement it; callers never see PixiJS or GPU
 // objects through it. It refines the specification's initial proposal: scene changes arrive as atomic deltas, and
 // game state as validated presentation snapshots.
+import type { BackendAttempt } from "../capabilities/selection";
+import type { Capabilities } from "../capabilities/model";
 import type { Failures } from "../contracts/errors";
 import { checkFinite, isRecord } from "../contracts/values";
 import type { SceneDelta, SceneDirty } from "../scene/delta";
@@ -40,7 +42,15 @@ export interface RecoveryEvent {
 
 export interface RendererDiagnostics {
   readonly state: LifecycleState;
-  readonly backend: { readonly requested: RendererBackend; readonly active: ActiveBackend | null; readonly failure: string | null };
+  /** `attempts` lists each backend tried in order and how it went, so a fallback is always visible. */
+  readonly backend: {
+    readonly requested: RendererBackend;
+    readonly active: ActiveBackend | null;
+    readonly failure: string | null;
+    readonly attempts: readonly BackendAttempt[];
+  };
+  /** What the probe found the browser and device can do; null before probing. */
+  readonly capabilities: Capabilities | null;
   readonly frames: {
     readonly rendered: number;
     readonly fps: Metric | null;
@@ -57,7 +67,8 @@ export interface RendererDiagnostics {
 export function emptyDiagnostics(requested: RendererBackend, state: LifecycleState = "created"): RendererDiagnostics {
   return {
     state,
-    backend: { requested, active: null, failure: null },
+    backend: { requested, active: null, failure: null, attempts: [] },
+    capabilities: null,
     frames: { rendered: 0, fps: null, averageFrameMs: null, p95FrameMs: null, updateCpuMs: null },
     scene: { id: null, revision: null, visibleChunks: 0, visibleCharacters: 0, activeParticles: 0 },
     gpu: { contexts: 0, drawCalls: null, textures: 0, textureBytes: null },

@@ -1,11 +1,17 @@
-// Chromium and WebKit tests against the production build, served by `vite preview` on 127.0.0.1:5194. Browsers come
-// from `npx playwright install chromium webkit`, never from npm lifecycle scripts. WebKit stands in for the owner's
-// Safari.
+// Chromium and WebKit tests against the production build, served by `vite preview` on 127.0.0.1:5194 (a secure
+// context, as WebGPU requires). Browsers come from `npx playwright install chromium webkit`, never from npm lifecycle
+// scripts. WebKit stands in for the owner's Safari.
 import { fileURLToPath } from "node:url";
 import { defineConfig, devices } from "@playwright/test";
 
 const root = fileURLToPath(new URL(".", import.meta.url));
 export const PREVIEW_PORT = 5194;
+// Headless Chromium has no WebGPU adapter by default. These flags give it SwiftShader for WebGPU (through Vulkan, which
+// it needs to present to a canvas) and for WebGL2. Headless Linux has no window surface for Vulkan to present to.
+const CHROMIUM_GPU_ARGS = [
+  "--enable-unsafe-webgpu", "--enable-features=Vulkan", "--use-angle=swiftshader",
+  ...(process.platform === "linux" ? ["--disable-vulkan-surface"] : []),
+];
 
 export default defineConfig({
   testDir: "tests/browser",
@@ -17,7 +23,7 @@ export default defineConfig({
   timeout: 30_000,
   use: { baseURL: `http://127.0.0.1:${PREVIEW_PORT}`, trace: "retain-on-failure" },
   projects: [
-    { name: "chromium", use: { ...devices["Desktop Chrome"] } },
+    { name: "chromium", use: { ...devices["Desktop Chrome"], launchOptions: { args: CHROMIUM_GPU_ARGS } } },
     { name: "webkit", use: { ...devices["Desktop Safari"] } },
   ],
   webServer: {

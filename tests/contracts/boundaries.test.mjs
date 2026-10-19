@@ -41,6 +41,12 @@ test('PixiJS stays in src/render/ and React in src/demo/', () => {
   assert.match(failuresOf('src/adapters/maplab/read.ts', 'import { renderToString } from "react-dom/server";'), /React may be imported only under src\/demo\//);
 });
 
+test('no source reads the user agent', () => {
+  assert.match(failuresOf('src/render/backends/probe.ts', 'const safari = navigator.userAgent.includes("Safari");'), /never read the user agent/);
+  assert.match(failuresOf('src/demo/ui/App.tsx', 'const brands = navigator.userAgentData?.brands;'), /never read the user agent/);
+  assert.equal(failuresOf('src/render/backends/probe.ts', 'const gpu = navigator.gpu;'), '');
+});
+
 test('the core TypeScript project refuses DOM and Node globals', () => {
   const dir = mkdtempSync(join(tmpdir(), 'renderlab-core-'));
   fixtures.push(dir);

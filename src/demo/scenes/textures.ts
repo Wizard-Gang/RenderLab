@@ -1,5 +1,5 @@
-// Textures generated in code for the reference scene, until RLDR-006/RLDR-007 compile real artwork. Pixels are opaque
-// or fully transparent (transparent ones are black), so premultiplied and straight alpha draw identically.
+// Textures generated in code for the reference scene, until RLDR-006/RLDR-007 compile real artwork. Pixels are straight
+// RGBA8; the runtime premultiplies them, and the glass texel's partial alpha shows both backends do it the same way.
 import type { ResourceDescriptor } from "../../core";
 import type { TexturePixels, TextureProvider } from "../../render";
 
@@ -46,6 +46,8 @@ export const REFERENCE_TEXTURES: Readonly<Record<string, TexturePixels>> = Objec
   // Left texel white, right texel black: shows mirroring and rotation.
   "tex.split": fromRows(["WK"], { W: PALETTE.white, K: PALETTE.black }),
   "tex.crate": fromRows(CRATE, { ".": null, B: PALETTE.border, O: PALETTE.fill, D: PALETTE.shade }),
+  // One white texel at alpha 128 of 255.
+  "tex.glass": { width: 1, height: 1, rgba: new Uint8Array([255, 255, 255, 128]), filtering: "nearest" },
 });
 
 export const referenceTextures: TextureProvider = {

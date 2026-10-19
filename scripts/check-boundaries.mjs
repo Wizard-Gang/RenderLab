@@ -2,7 +2,8 @@
 // Enforces the specification's §5 dependency rules on every module under src/ (tracked or not):
 // - src/core/ is self-contained: only relative imports that stay inside src/core/, and no JSX;
 // - PixiJS is imported only under src/render/, so GPU-specific code stays inside renderer implementations;
-// - React is imported only under src/demo/, so React stays application UI.
+// - React is imported only under src/demo/, so React stays application UI;
+// - no source reads the user agent: capabilities come from probing the graphics APIs (specification §6.3).
 // tsconfig.core.json separately compiles src/core/ without the DOM library or Node types.
 // Specifiers are read with regular expressions over RenderLab's own source; this is not a general JavaScript parser.
 import { readdirSync, readFileSync } from 'node:fs';
@@ -19,6 +20,7 @@ const SPECIFIERS = [
 ];
 const PIXI = /^(?:pixi\.js|@pixi\/.+)(?:\/.*)?$/;
 const REACT = /^(?:react|react-dom)(?:\/.*)?$/;
+const USER_AGENT = /\buserAgent(?:Data)?\b/;
 
 export function moduleSpecifiers(source) {
   const found = new Set();
@@ -32,6 +34,7 @@ export function checkBoundaries(files) {
   for (const { path, source } of files) {
     const inCore = path.startsWith('src/core/');
     if (inCore && /\.(?:tsx|jsx)$/.test(path)) failures.push(`${path}: src/core/ holds no JSX; React belongs to src/demo/`);
+    if (USER_AGENT.test(source)) failures.push(`${path}: never read the user agent; probe the graphics APIs instead`);
     for (const specifier of moduleSpecifiers(source)) {
       if (inCore) {
         const relativeImport = specifier.startsWith('./') || specifier.startsWith('../');

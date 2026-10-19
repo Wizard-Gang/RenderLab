@@ -1,28 +1,81 @@
 # GPU backends
 
-RenderLab draws through PixiJS v8, pinned exactly in `package.json`. The [specification](specifications/2026-10-18-renderlab.md) §6 and §16 call for two backends behind the renderer-neutral `RendererRuntime` contract: WebGL2, the initial production baseline, and WebGPU, a fully supported and independently validated backend. This document records what each backend does today.
+RenderLab draws through PixiJS v8, pinned exactly in `package.json`. Two backends sit behind the renderer-neutral `RendererRuntime` contract, as the [specification](specifications/2026-10-18-renderlab.md) §6 and §16 require:
 
-| Backend | Status | Runtime |
-| --- | --- | --- |
-| WebGL2 | Baseline since RLDR-003 | `PixiWebGL2Runtime` (`src/render/pixi/webgl2-runtime.ts`) |
-| WebGPU | Arrives with RLDR-004, together with capability probing and `auto` selection | — |
+- **WebGL2**, the initial production baseline (RLDR-003);
+- **WebGPU**, a fully supported, independently validated backend (RLDR-004).
 
-## WebGL2 baseline
+`PixiRuntime` (`src/render/pixi/runtime.ts`) runs either one. Each backend's PixiJS renderer is its own code chunk, loaded only when that backend is chosen.
 
-**Context.** The runtime creates the canvas's `webgl2` context itself and hands it to PixiJS (`createWebGL2Context`, `src/render/pixi/context.ts`). PixiJS therefore never falls back to WebGL 1; a context that is not a `WebGL2RenderingContext` is refused. The attributes are `alpha: false`, `antialias: false`, `depth: false`, `stencil: true`, `premultipliedAlpha: true` and `preserveDrawingBuffer: false`. `failIfMajorPerformanceCaveat: false` accepts software rasterizers, so headless CI renders. After initialization the runtime checks that PixiJS reports WebGL 2. A browser without WebGL2 gets a `BackendUnavailableError` whose message the reference application shows in place of a blank canvas, for example `WebGL2 is unavailable: this browser or device did not provide a WebGL2 context`.
+## Choosing a backend
 
-**Scenes.** `mountScene` builds a fresh `SceneStore` from the core definition and a `PixiSceneGraph` (`src/render/pixi/scene-graph.ts`) from that. The graph creates one PixiJS container per layer: the layer's own objects draw before its child layers, siblings draw by `order`, and objects within a layer draw by `sortKey` and then by ID. `applySceneDelta` updates only what the delta's `SceneDirty` names, and re-ranks a layer only when membership or a `sortKey` changes. The graph needs no GPU, so it is unit-tested in node. A remount builds the new graph before it tears down the old one, so a scene that fails to load leaves the previous one drawing. This runtime presents **sprites only**. A scene or delta containing tile chunks, characters, particles or effects is refused with an `UnsupportedSceneError` naming each object; nothing is drawn partially or silently dropped. RLDR-009 and later tasks add those kinds.
+`RendererBackend` is `"auto"`, `"webgl2"` or `"webgpu"` (`src/core/capabilities/selection.ts`):
 
-**Coordinates.** The camera is identity until RLDR-005: one world unit is one CSS pixel from the canvas's top-left corner, and the canvas backing store is scaled by the viewport's DPR (`autoDensity`). Rotations convert from the model's degrees to PixiJS radians, and mirroring becomes a negative scale about the sprite's anchor (`src/render/pixi/translate.ts`, which is pure and unit-tested).
+- **`auto`** (the default) tries its preferred backend first and the other one as a permitted fallback. The preference is WebGL2 until WebGPU's production qualification; only a governed change moves it. `autoPreference: "webgpu"` exists so the WebGPU-first path and its fallback (§6.4) are exercised today.
+- **An explicit backend** is tried alone. If it cannot start, the runtime reports why and stays failed; it never downgrades silently.
 
-**Textures.** Every texture resource a scene declares is loaded when it mounts, from a `TextureProvider` that returns straight-alpha RGBA8 pixels (`src/render/textures.ts`). This is a stand-in until RLDR-006 and RLDR-007 compile real artwork. Pixels upload as `rgba8unorm` with `premultiply-alpha-on-upload` and no mipmaps, sampled `nearest` (pixel art) or `linear` as each texture asks. Edges above 2048 are refused until RLDR-004 probes device limits. A texture used by both the old and the new scene survives a remount, and any other texture is destroyed. So is a texture whose resource a delta removes. Adding a texture resource after mount is refused until RLDR-006 loads on demand.
+Before trying anything, the runtime probes capabilities from the graphics APIs themselves (`src/render/backends/probe.ts`):
 
-**Teardown.** `destroy` destroys every sprite, layer container and texture, then the PixiJS renderer with its canvas. It then makes sure the WebGL2 context reports lost: PixiJS calls `WEBGL_lose_context`, and the runtime calls it again if it did not. Only then does it drop the context. Diagnostics after `destroy` show `state: destroyed`, `textures: 0` and `contexts: 0`, and the reference application's **Restart renderer** button shows exactly that.
+- WebGL2 availability and `MAX_TEXTURE_SIZE`;
+- WebGPU availability, and when it is available, the adapter's vendor, architecture and fallback flag, `maxTextureDimension2D`, its features and the preferred canvas format;
+- secure context, device pixel ratio and reduced motion.
 
-**Context loss.** When the browser reports `webglcontextlost`, the runtime moves to the `lost` lifecycle state and records a recovery event. `render`, `update` and `applySceneDelta` are then refused with a precise `LifecycleError`, so no invalid GPU command is issued. Restoring the context and its resources is RLDR-017's job. Until then a lost renderer is destroyed and created again.
+A backend the probe finds unavailable is skipped with its reason, and one that fails while starting is recorded as failed. Each start releases whatever it created before it reports failure. Diagnostics carry the requested backend, the active one, every attempt with its outcome and reason, and the probed capabilities. A fallback is also logged as a recovery event. Nothing reads the user agent: `npm run check` refuses any source under `src/` that mentions `userAgent`.
 
-**Diagnostics.** Frames rendered, live textures, live contexts and an estimated texture memory figure (`width × height × 4` bytes per texture, labelled *estimated*). Draw calls are not reported until a later task measures them.
+Messages read like their cause, for example `WebGPU is unavailable: no WebGPU adapter is available`, `WebGPU failed to start: the device could not present a frame: …`, or, when `auto` runs out of options, `no permitted graphics backend could start. WebGL2 is unavailable: …; WebGPU is unavailable: …`.
+
+## WebGL2
+
+The runtime creates the canvas's `webgl2` context itself and hands it to PixiJS (`src/render/backends/webgl2.ts`, `webgl2-context.ts`). PixiJS therefore never falls back to WebGL 1. The attributes are `alpha: false`, `antialias: false`, `depth: false`, `stencil: true`, `premultipliedAlpha: true` and `preserveDrawingBuffer: false`, and `failIfMajorPerformanceCaveat: false` lets software rasterizers run. After initialization the runtime checks that PixiJS reports WebGL 2. Disposal destroys the renderer and canvas, then makes sure the context reports lost through `WEBGL_lose_context`. A `webglcontextlost` event moves the lifecycle to `lost`.
+
+## WebGPU
+
+The runtime requests its own adapter and device and hands them to PixiJS (`src/render/backends/webgpu.ts`). Given a device, PixiJS neither destroys it nor silently replaces it on loss, so the runtime owns both:
+
+- **Startup.** After PixiJS initializes, the runtime presents one empty frame inside validation, internal and out-of-memory error scopes. It waits for the GPU to finish the frame, then waits a short grace period for a device loss. Some adapters create a device that cannot present to a canvas; SwiftShader in headless Chromium without Vulkan is one. Such a device is lost on its first frame. The check turns that into a start failure that `auto` falls back from, instead of a black canvas.
+- **Disposal.** Destroys the renderer, the canvas and the device, then waits for `device.lost` to resolve as `destroyed` before it reports the device released.
+- **Loss.** Any other device loss moves the lifecycle to `lost` and refuses further draws.
+
+## Shared behaviour
+
+**Scenes.** `mountScene` builds a fresh `SceneStore` from the core definition, and a `PixiSceneGraph` (`src/render/pixi/scene-graph.ts`) from that store:
+
+- One PixiJS container per layer. A layer's own objects draw before its child layers, siblings draw by `order`, and objects within a layer draw by `sortKey` and then by ID.
+- `applySceneDelta` updates only what the delta's `SceneDirty` names, and re-ranks a layer only when its membership or a `sortKey` changes.
+- The graph needs no GPU, so it is unit-tested in node.
+- A remount builds the new graph before it tears down the old one, so a scene that fails to load leaves the previous one drawing.
+
+Both runtimes present **sprites only**. A scene or delta containing tile chunks, characters, particles or effects is refused with an `UnsupportedSceneError` naming each object. RLDR-009 and later tasks add those kinds.
+
+**Coordinates.** The camera is identity until RLDR-005: one world unit is one CSS pixel from the canvas's top-left corner, and the backing store is scaled by the viewport's DPR. Rotations convert from the model's degrees to PixiJS radians, and mirroring becomes a negative scale about the sprite's anchor (`src/render/pixi/translate.ts`).
+
+**Textures and alpha.** Every texture resource a scene declares is loaded when it mounts, from a `TextureProvider` of straight-alpha RGBA8 pixels (`src/render/textures.ts`), until RLDR-006 and RLDR-007 compile real artwork.
+
+- **Premultiplication.** PixiJS premultiplies buffer uploads on WebGL2 but writes them unchanged on WebGPU. RenderLab therefore premultiplies texels itself and uploads them as `premultiplied-alpha`, so both backends receive identical bytes. The reference scene's half-transparent glass texel proves it on both backends.
+- **Upload.** Textures upload as `rgba8unorm` without mipmaps, sampled `nearest` (pixel art) or `linear`.
+- **Size.** An edge above the active backend's probed limit is refused; 2048 applies before probing.
+- **Lifetime.** A texture shared by the old and new scene survives a remount, and any other texture is destroyed, as is one whose resource a delta removes.
+
+**Teardown.** `destroy` releases every display object and texture and disposes of the backend. Diagnostics then show `textures: 0` and `contexts: 0` only once the GPU has confirmed the release. The reference application's **Restart renderer** button shows exactly that.
+
+**Context and device loss.** On loss, the runtime records a recovery event and refuses `render`, `update` and `applySceneDelta` with a precise `LifecycleError`, so no invalid GPU command is issued. Restoring the context or device and its resources is RLDR-017's job; until then a lost renderer is destroyed and created again.
+
+**Diagnostics.** Frames rendered, live textures, live contexts or devices, and estimated texture memory (`width × height × 4` bytes per texture, labelled *estimated*). Draw calls are not reported until a later task measures them.
 
 ## Browsers and CI
 
-The Playwright suite runs every test in Chromium and WebKit, WebKit standing in for Safari. Both must provide WebGL2: a test reports a missing capability as a failure, never as a skip. Playwright launches Chromium with `--enable-unsafe-swiftshader`, so headless Linux CI renders WebGL2 through SwiftShader, and WebKit uses its own WebGL2 implementation. The pixel tests read real canvas output: a CSS-scale element screenshot, decoded in the test, with a tolerance of six steps per channel for software rasterizers and colour conversion.
+The Playwright suite runs every backend test in Chromium and WebKit, WebKit standing in for Safari:
+
+- **Chromium.** Headless Chromium has no WebGPU adapter by default. It runs with `--enable-unsafe-webgpu --enable-features=Vulkan --use-angle=swiftshader`, which gives it SwiftShader for WebGPU (through Vulkan, which it needs to present) and for WebGL2. On Linux it also gets `--disable-vulkan-surface`, because headless Linux has no window surface to present to.
+- **WebGL2** must render in both browsers; a missing WebGL2 fails the run.
+- **WebGPU outcome.** The probe's answer and the actual start outcome are logged and annotated on every run. An adapter can exist and still fail to start: headless Linux Chromium's SwiftShader device could not present. So the tests key off the outcome. Where WebGPU starts, the suite checks its pixels, teardown and device loss. Where it does not, the suite checks that an explicit `webgpu` request names the exact reason, and the WebGPU-only teardown and loss tests skip with that reason, never passing silently.
+- **Pixels.** The tests read real canvas output: a CSS-scale element screenshot decoded in the test, within six steps per channel.
+
+| Environment | WebGL2 | WebGPU |
+| --- | --- | --- |
+| Chromium 1248, headless, macOS (Playwright 1.64.1, flags above) | Reference pixels pass | Reference pixels pass on SwiftShader (fallback adapter) |
+| WebKit 2370, headless, macOS (Playwright 1.64.1) | Reference pixels pass | Reference pixels pass on the Apple adapter |
+| Chromium on `ubuntu-latest` CI | Checked on every PR by the required `verify` job | SwiftShader adapter found. Whether its device presents is reported per run; with the Vulkan flags alone it failed on 2026-10-19 ("Instance dropped in popErrorScope") |
+| WebKit on `ubuntu-latest` CI | Checked on every PR by the required `verify` job | Unavailable: `navigator.gpu` is not exposed (reported per run) |
+
+Because CI may not present WebGPU, a change under `src/render/` also runs the browser suite locally on macOS, where both browsers present WebGPU, and records that run in its Validation field.

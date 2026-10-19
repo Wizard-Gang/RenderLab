@@ -38,7 +38,7 @@ const square = (id: string, x: number, y: number, tint: number, extra: Partial<S
 export function referenceScene(): SceneDefinition {
   return {
     id: sceneId("renderlab.reference"),
-    resources: ["tex.white", "tex.split", "tex.crate"].map((id) => ({
+    resources: ["tex.white", "tex.split", "tex.crate", "tex.glass"].map((id) => ({
       id: resourceId(id), kind: "texture" as const, source: { authority: "renderlab:generated", id, path: [] },
     })),
     layers: [
@@ -58,6 +58,7 @@ export function referenceScene(): SceneDefinition {
       sprite("split.mirrored", "world.figures", "tex.split", { x: 372, y: 56, scaleX: 16, scaleY: 32, mirrorX: true }, { anchor: { x: 0.5, y: 0.5 } }),
       sprite("split.turned", "world.figures", "tex.split", { x: 436, y: 56, scaleX: 16, scaleY: 32, rotation: 90 }, { anchor: { x: 0.5, y: 0.5 } }),
       sprite("crate", "world.figures", "tex.crate", { x: 40, y: 140, scaleX: 6, scaleY: 6 }),
+      sprite("glass", "world.figures", "tex.glass", { x: 112, y: 140, scaleX: 48, scaleY: 48 }),
       sprite("hud.bar", "hud", "tex.white", { x: 8, y: 8, scaleX: 64, scaleY: 4 }),
     ],
     camera: { x: REFERENCE_VIEWPORT.width / 2, y: REFERENCE_VIEWPORT.height / 2, zoom: 1 },

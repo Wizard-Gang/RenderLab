@@ -9,6 +9,6 @@ test("the built shell loads without console errors", async ({ page }) => {
 
   await page.goto("/");
   await expect(page.getByRole("heading", { level: 1, name: "RenderLab" })).toBeVisible();
-  await expect(page.getByRole("status")).toHaveText("Repository bootstrap: no renderer is mounted yet.");
+  await expect(page.getByRole("status")).toHaveText(/^Rendering the reference scene with WebGL2/);
   expect(errors).toEqual([]);
 });

@@ -9,7 +9,7 @@ RenderLab tests in layers. Each layer has one command, and the required `verify`
 | Unit | `npm test` | Vitest in the node environment over `tests/**/*.test.ts`, including the core scene, lifecycle and snapshot contracts in `tests/core/` | Node only |
 | Types | `npm run typecheck` | `tsc --noEmit` over sources, tests and configs, then `tsc -p tsconfig.core.json` over `src/core/` with no DOM library or Node types | Node only |
 | Build | `npm run build` | Production `vite build` | Node only |
-| Browser | `npm run test:browser` | Playwright against the production build in Chromium and WebKit | Browsers installed once with `npx playwright install chromium webkit` |
+| Browser | `npm run test:browser` | Playwright against the production build in Chromium and WebKit: the reference scene's WebGL2 pixels, the no-WebGL2 error, teardown and remount, and context loss | Browsers installed once with `npx playwright install chromium webkit` |
 | Dependency advisories | `npm run audit:dependencies` | `npm audit --audit-level=high` (the `security` check) | Network |
 
 `npm run check` is the canonical offline gate. It runs the plan-queue, workflow-shell, repository, boundary, contract, type, unit, build and change-identity checks, with no credentials, no network and no downloaded browsers. `npm run test:browser` stays outside it only because it needs browser binaries. CI installs them after `npm run check` and then runs the browser tests in the same required `verify` job, so a PR cannot merge without them. Locally, run both:
@@ -21,7 +21,8 @@ cd ~/Documents/GitHub/RenderLab && npm ci && npm run check && npm run test:brows
 ## Policies
 
 - **Browsers.** Chromium covers Chrome and Edge, and WebKit stands in for Safari, the owner's browser. Later tasks add Firefox and real-device coverage where the specification's §17 requires it.
-- **GPU capabilities.** A test that needs WebGL2 or WebGPU records whether the browser under test provides it. An unavailable capability is reported as unavailable, never skipped silently or counted as a pass (§19).
+- **GPU capabilities.** A test that needs WebGL2 or WebGPU records whether the browser under test provides it. An unavailable capability is reported as unavailable, never skipped silently or counted as a pass (§19). Both CI browsers must provide WebGL2.
+- **Pixels.** Rendering tests read real canvas output: a CSS-scale element screenshot decoded by `tests/browser/png.ts`, sampled at points whose expected colours come from the reference scene, within six steps per channel.
 - **Determinism.** Unit tests that use randomness take a fixed seed. Snapshot and asset tests compare exact bytes only where the contract guarantees determinism, and document their tolerance everywhere else.
 - **Fixtures.** MapLab and RigLab fixtures are copies of published exports and conformance cases, pinned by source repository, commit, path and SHA-256 (from RLDR-006).
 - **Visual regression and performance** suites arrive in RLDR-019 and RLDR-020. Performance results are recorded evidence with a benchmark identity, never unqualified machine-specific assertions in CI.

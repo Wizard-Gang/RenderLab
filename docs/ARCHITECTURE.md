@@ -4,7 +4,7 @@ RenderLab is a standalone, game-engine-independent 2D presentation platform. It 
 
 ## Current state
 
-The repository holds its governance, its toolchain, the renderer-neutral core contracts (`src/core/`, RLDR-002) and a reference application shell (`index.html`, `src/demo/ui/`). The shell is a React page that mounts no renderer yet. The renderer, asset pipeline and adapters arrive through the tasks in [implementation_plan.md](../implementation_plan.md), in specification order. Each task updates this document when it adds a boundary or module.
+The repository holds its governance, its toolchain, the renderer-neutral core contracts (`src/core/`, RLDR-002), the PixiJS v8 WebGL2 runtime (`src/render/`, RLDR-003) and the reference application (`index.html`, `src/demo/`). The application draws a generated reference scene through WebGL2 and shows the runtime's diagnostics. The renderer, asset pipeline and adapters arrive through the tasks in [implementation_plan.md](../implementation_plan.md), in specification order. Each task updates this document when it adds a boundary or module.
 
 ## Data flow
 
@@ -27,9 +27,9 @@ The planned source layout follows the specification's §5:
 | `src/core/` | Renderer-neutral contracts: scene model, camera, timeline, lifecycle, capabilities | RLDR-002, RLDR-004, RLDR-005 |
 | `src/assets/` | Bundle reading, integrity, loading, caching, atlases, compilation | RLDR-006, RLDR-007 |
 | `src/adapters/` | MapLab and RigLab readers; the replaceable simulation bridge | RLDR-008, RLDR-011, RLDR-015 |
-| `src/render/` | PixiJS v8 adapter, backends, terrain, sprites, skeletal, particles, effects, layers | RLDR-003 onward |
+| `src/render/` | PixiJS v8 runtimes (WebGL2 since RLDR-003), backends, terrain, sprites, skeletal, particles, effects, layers | RLDR-003 onward |
 | `src/diagnostics/` | Metrics, profiling, visual parity | RLDR-017 to RLDR-020 |
-| `src/demo/` | Reference application UI and scenes | RLDR-001 (shell), RLDR-018 |
+| `src/demo/` | Reference application UI and scenes (the generated reference scene since RLDR-003) | RLDR-001 (shell), RLDR-003, RLDR-018 |
 
 ## Scene model
 
@@ -60,6 +60,10 @@ A `SceneStore` owns one scene and changes only through atomic deltas: all of a d
 | any state but destroyed | destroy | destroyed |
 
 `update`, `applySceneDelta` and `render` need a mounted scene. `resize` also works while the device is lost, so the size is kept for the restore. Every other call fails with a `LifecycleError` that says why, so no invalid GPU command is issued.
+
+## Renderers
+
+`src/render/` implements `RendererRuntime` on PixiJS v8. The WebGL2 runtime presents sprites from a mounted scene, updates only what each delta dirties, and refuses content it cannot present yet. [GPU backends](GPU-BACKENDS.md) describes its context, texture, teardown and context-loss behaviour. The reference application (`src/demo/`) reaches PixiJS only through `src/render/`. It builds the runtime in a React effect and draws on `requestAnimationFrame`; React never holds scene objects.
 
 ## Dependency rules
 

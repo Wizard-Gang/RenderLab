@@ -167,7 +167,7 @@ export function validateSpecification(bytes) {
 
 export const REQUIRED_AUTHORITIES = Object.freeze([
   'README.md', 'AGENTS.md', 'CONTRIBUTING.md', 'LICENSE', 'SECURITY.md', 'implementation_plan.md',
-  'docs/ARCHITECTURE.md', 'docs/CHANGE-MANAGEMENT.md', 'docs/RELEASE-MANAGEMENT.md', 'docs/TESTING.md',
+  'docs/ARCHITECTURE.md', 'docs/CHANGE-MANAGEMENT.md', 'docs/GPU-BACKENDS.md', 'docs/RELEASE-MANAGEMENT.md', 'docs/TESTING.md',
   SPECIFICATION.path, '.node-version', '.npmrc', 'package.json', 'package-lock.json', 'tsconfig.json', 'tsconfig.core.json',
   'scripts/check-boundaries.mjs',
   'vite.config.ts', 'vitest.config.ts', 'playwright.config.ts', '.github/pull_request_template.md',

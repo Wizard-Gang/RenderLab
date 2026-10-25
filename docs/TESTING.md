@@ -6,7 +6,8 @@ RenderLab tests in layers. Each layer has one command, and the required `verify`
 | --- | --- | --- | --- |
 | Governance and contracts | `npm run test:contracts` | `node --test tests/contracts/*.test.mjs`: change identity, plan queue, specification pin, workflows, provider policy, architecture boundaries, dev launcher | Node only |
 | Architecture boundaries | `npm run check:boundaries` | The §5 import rules over every module under `src/` | Node only |
-| Unit | `npm test` | Vitest in the node environment over `tests/**/*.test.ts`, including the core scene, lifecycle and snapshot contracts in `tests/core/` | Node only |
+| Fixture provenance | `npm run check:fixtures` | Every file under `fixtures/` against `fixtures/provenance.json`: source repository, full commit, source path and SHA-256 | Node only |
+| Unit | `npm test` | Vitest in the node environment over `tests/**/*.test.ts`, including the core scene, lifecycle and snapshot contracts in `tests/core/` and the bundle reader in `tests/assets/` | Node only |
 | Types | `npm run typecheck` | `tsc --noEmit` over sources, tests and configs, then `tsc -p tsconfig.core.json` over `src/core/` with no DOM library or Node types | Node only |
 | Build | `npm run build` | Production `vite build` | Node only |
 | Browser | `npm run test:browser` | Playwright against the production build in Chromium and WebKit: reference-scene pixels on each backend, backend selection and fallback, the no-WebGL2 and no-WebGPU messages, teardown and remount, context and device loss, strict-pixel texel squares at DPR 1 and 2, live resizing within camera bounds, and keyboard pan and zoom checked against the core camera math | Browsers installed once with `npx playwright install chromium webkit` |

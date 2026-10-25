@@ -23,7 +23,8 @@ export const SPECIFICATION = Object.freeze({
 export const WORKFLOWS = Object.freeze(['ci.yml']);
 
 export const REQUIRED_SCRIPTS = Object.freeze([
-  'start', 'dev', 'build', 'preview', 'typecheck', 'test', 'test:browser', 'check', 'check:boundaries', 'check:change', 'check:patch',
+  'start', 'dev', 'build', 'preview', 'typecheck', 'test', 'test:browser', 'check', 'check:boundaries', 'check:change', 'check:fixtures',
+  'check:patch',
   'check:repository', 'check:workflow-shell', 'test:contracts', 'test:plan-queue', 'test:github-settings',
   'verify:github-settings', 'apply:github-settings', 'audit:dependencies',
 ]);
@@ -73,6 +74,7 @@ export function validatePackage(pkg, lock) {
   }
   if (pkg.scripts?.['test:browser'] !== 'playwright test') failures.push('browser tests must run through playwright test');
   if (!/\bnpm run check:boundaries\b/.test(pkg.scripts?.check ?? '')) failures.push('npm run check must enforce the architecture boundaries');
+  if (!/\bnpm run check:fixtures\b/.test(pkg.scripts?.check ?? '')) failures.push('npm run check must verify the fixture provenance lock');
   if (!/\btsc -p tsconfig\.core\.json\b/.test(pkg.scripts?.typecheck ?? '')) {
     failures.push('npm run typecheck must compile src/core/ without the DOM through tsconfig.core.json');
   }
@@ -169,7 +171,7 @@ export const REQUIRED_AUTHORITIES = Object.freeze([
   'README.md', 'AGENTS.md', 'CONTRIBUTING.md', 'LICENSE', 'SECURITY.md', 'implementation_plan.md',
   'docs/ARCHITECTURE.md', 'docs/CHANGE-MANAGEMENT.md', 'docs/GPU-BACKENDS.md', 'docs/RELEASE-MANAGEMENT.md', 'docs/TESTING.md',
   SPECIFICATION.path, '.node-version', '.npmrc', 'package.json', 'package-lock.json', 'tsconfig.json', 'tsconfig.core.json',
-  'scripts/check-boundaries.mjs',
+  'scripts/check-boundaries.mjs', 'scripts/check-fixtures.mjs', 'fixtures/provenance.json', 'docs/ASSET-PIPELINE.md',
   'vite.config.ts', 'vitest.config.ts', 'playwright.config.ts', '.github/pull_request_template.md',
   'config/github-repository-settings.json', ...WORKFLOWS.map((file) => `.github/workflows/${file}`),
 ]);

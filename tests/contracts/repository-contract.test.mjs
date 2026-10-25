@@ -46,6 +46,10 @@ test('check enforces the architecture boundaries and the DOM-free core project',
   assert.match(failuresWith((state) => {
     state.pkg.scripts.check = state.pkg.scripts.check.replace(' && npm run check:boundaries', '');
   }), /must enforce the architecture boundaries/);
+  assert.match(failuresWith((state) => {
+    state.pkg.scripts.check = state.pkg.scripts.check.replace(' && npm run check:fixtures', '');
+  }), /must verify the fixture provenance lock/);
+  assert.match(failuresWith((state) => { delete state.pkg.scripts['check:fixtures']; }), /missing package script check:fixtures/);
   assert.match(failuresWith((state) => { state.pkg.scripts.typecheck = 'tsc --noEmit'; }), /tsconfig\.core\.json/);
 });
 

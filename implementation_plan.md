@@ -4,24 +4,6 @@
 
 The tasks below are the remaining baseline tasks reserved by the governing specification, [2026-10-18-renderlab.md](docs/specifications/2026-10-18-renderlab.md) §20, in its order. Each one is delivered by its own controlled PR. Before an adapter task, re-read the live `Wizard-Gang/MapLab` and `Wizard-Gang/RigLab` main branches (§3): their formats can change between sessions, and fixtures copied from them carry a provenance pin.
 
-### RLDR-006 — [FEAT] Read asset bundles with manifest and integrity checks
-
-- Dependency: RLDR-005 in queue order; technically RLDR-002's resource handles.
-- Why: Every MapLab, RigLab and compiled asset enters through one validated bundle reader (§8.1, §11.4, §12).
-- Scope: `src/assets/` gets:
-  - a bounded container reader for folder maps and STORE ZIPs, with safe-path, bounds and duplicate validation;
-  - manifest parsing with size and SHA-256 verification;
-  - contract-version and required-feature negotiation with actionable compatibility reports;
-  - content-addressed resource identity and a reference-counted loading lifecycle.
-
-  `fixtures/` gets a provenance lock (source repository, commit, path, SHA-256) for every copied MapLab or RigLab fixture, checked in `npm run check`.
-- Non-goals: No MapLab or RigLab document semantics (RLDR-008, RLDR-011), no rasterization (RLDR-007), and no IndexedDB cache.
-- Acceptance: Valid bundles load. The reader rejects, with precise reasons: corrupt bytes, size mismatches, unlisted, missing, duplicate or unsafe paths, unknown required features and unsupported versions. A correct digest is never treated as publisher identity.
-- Tests: Vitest covers a corruption matrix, ZIP bounds (entry count, sizes, compression method) and lifecycle reference counting. A contract test covers the fixture lock.
-- Validation: The standard set.
-- Documentation: `docs/ASSET-PIPELINE.md` covers the bundle reader, integrity and identity.
-- Authorities: Specification §8.1, §11.4–11.5, §12. On live main: MapLab's `schemas/maplab.export.v1.schema.json` and `conformance/bundle/`, and RigLab's export manifest in `src/export/bundle.ts`.
-
 ### RLDR-007 — [FEAT] Rasterize SVG artwork into deterministic texture atlases
 
 - Dependency: RLDR-006 (bundles, identity, compiled manifest).

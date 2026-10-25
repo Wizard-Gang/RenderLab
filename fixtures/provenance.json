@@ -1,0 +1,87 @@
+{
+  "format": "renderlab.fixture-provenance",
+  "version": 1,
+  "fixtures": [
+    {
+      "path": "fixtures/maplab/forest-export/catalogs/core.catalog.json",
+      "sha256": "441f1389d0cdd3ae845d6daf6eefcb9ff7012e592ffa6a5d2bb0b239d6cf2583",
+      "source": {
+        "repository": "Wizard-Gang/MapLab",
+        "commit": "30ad4acfff988a9de5ef7defaa9381b359d17fb1",
+        "path": "docs/specifications/2026-10-17-maplab-r1/examples/forest-export/catalogs/core.catalog.json"
+      }
+    },
+    {
+      "path": "fixtures/maplab/forest-export/manifest.json",
+      "sha256": "0a39dafd637c7cefa184ce9f18bd909d47f3eef317de3418bb3573614bf323ea",
+      "source": {
+        "repository": "Wizard-Gang/MapLab",
+        "commit": "30ad4acfff988a9de5ef7defaa9381b359d17fb1",
+        "path": "docs/specifications/2026-10-17-maplab-r1/examples/forest-export/manifest.json"
+      }
+    },
+    {
+      "path": "fixtures/maplab/forest-export/maps/clearing.map.json",
+      "sha256": "df8fbd67f05353c7ece21d211434bbd3db70f55a8bb2889dd5dd6630b56ac26e",
+      "source": {
+        "repository": "Wizard-Gang/MapLab",
+        "commit": "30ad4acfff988a9de5ef7defaa9381b359d17fb1",
+        "path": "docs/specifications/2026-10-17-maplab-r1/examples/forest-export/maps/clearing.map.json"
+      }
+    },
+    {
+      "path": "fixtures/maplab/forest-export/maps/forest.map.json",
+      "sha256": "a12b1c44623198210ed6c65b0730c1c904fd0810723fff852baf5919a28ed965",
+      "source": {
+        "repository": "Wizard-Gang/MapLab",
+        "commit": "30ad4acfff988a9de5ef7defaa9381b359d17fb1",
+        "path": "docs/specifications/2026-10-17-maplab-r1/examples/forest-export/maps/forest.map.json"
+      }
+    },
+    {
+      "path": "fixtures/maplab/forest-export/movement/flyer.movement.json",
+      "sha256": "ccd588615b794c55138637e762f89c87bd057ef5b305c1c7f632d9ec923cf776",
+      "source": {
+        "repository": "Wizard-Gang/MapLab",
+        "commit": "30ad4acfff988a9de5ef7defaa9381b359d17fb1",
+        "path": "docs/specifications/2026-10-17-maplab-r1/examples/forest-export/movement/flyer.movement.json"
+      }
+    },
+    {
+      "path": "fixtures/maplab/forest-export/movement/ground.movement.json",
+      "sha256": "0d293c4061830c7cb2f3ef6749dc6bbd8579df34090ecd3f2dc1234beed60e86",
+      "source": {
+        "repository": "Wizard-Gang/MapLab",
+        "commit": "30ad4acfff988a9de5ef7defaa9381b359d17fb1",
+        "path": "docs/specifications/2026-10-17-maplab-r1/examples/forest-export/movement/ground.movement.json"
+      }
+    },
+    {
+      "path": "fixtures/maplab/forest-export/movement/player.movement.json",
+      "sha256": "618ec585a417430a33b0c72f4c392fbee799e6347eb22783fe07329a4e204f60",
+      "source": {
+        "repository": "Wizard-Gang/MapLab",
+        "commit": "30ad4acfff988a9de5ef7defaa9381b359d17fb1",
+        "path": "docs/specifications/2026-10-17-maplab-r1/examples/forest-export/movement/player.movement.json"
+      }
+    },
+    {
+      "path": "fixtures/maplab/forest-export/tilesets/forest.tileset.json",
+      "sha256": "1df657676298fea2e54d6f0925dc4f232c9934ce175965f29b625bc8920f20ab",
+      "source": {
+        "repository": "Wizard-Gang/MapLab",
+        "commit": "30ad4acfff988a9de5ef7defaa9381b359d17fb1",
+        "path": "docs/specifications/2026-10-17-maplab-r1/examples/forest-export/tilesets/forest.tileset.json"
+      }
+    },
+    {
+      "path": "fixtures/maplab/schemas/maplab.export.v1.schema.json",
+      "sha256": "d2ebe8683121cc24a9a1cbca26e3b0dc0427cfa6fb8f20474bd0b28a7e42b2b4",
+      "source": {
+        "repository": "Wizard-Gang/MapLab",
+        "commit": "30ad4acfff988a9de5ef7defaa9381b359d17fb1",
+        "path": "schemas/maplab.export.v1.schema.json"
+      }
+    }
+  ]
+}

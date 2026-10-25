@@ -32,6 +32,13 @@ test('src/core/ imports only modules inside src/core/', () => {
   assert.match(failuresOf('src/core/view.tsx', 'export const View = () => null;'), /holds no JSX/);
 });
 
+test('src/assets/ imports only modules inside src/assets/ or src/core/', () => {
+  assert.equal(failuresOf('src/assets/bundle.ts', 'import { parseJson } from "./json";\nimport type { ResourceId } from "../core/contracts/ids";'), '');
+  assert.match(failuresOf('src/assets/bundle.ts', 'import { Assets } from "pixi.js";'), /src\/assets\/ may import only modules inside src\/assets\/ or src\/core\/; found "pixi\.js"/);
+  assert.match(failuresOf('src/assets/bundle.ts', 'import { readFile } from "node:fs";'), /found "node:fs"/);
+  assert.match(failuresOf('src/assets/bundle.ts', 'import { draw } from "../render/pixi/runtime";'), /found "\.\.\/render\/pixi\/runtime"/);
+});
+
 test('PixiJS stays in src/render/ and React in src/demo/', () => {
   assert.equal(failuresOf('src/render/pixi/adapter.ts', 'import { Application } from "pixi.js";'), '');
   assert.equal(failuresOf('src/demo/ui/App.tsx', 'import { StrictMode } from "react";\nimport { createRoot } from "react-dom/client";'), '');

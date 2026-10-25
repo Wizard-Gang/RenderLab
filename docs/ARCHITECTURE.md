@@ -25,7 +25,7 @@ The planned source layout follows the specification's §5:
 | Area | Responsibility | Lands in |
 | --- | --- | --- |
 | `src/core/` | Renderer-neutral contracts: scene model, camera, timeline, lifecycle, capabilities and backend selection | RLDR-002, RLDR-004, RLDR-005 |
-| `src/assets/` | Bundle reading, integrity, loading, caching, atlases, compilation | RLDR-006, RLDR-007 |
+| `src/assets/` | Bundle reading, integrity, content identity and the loading lifecycle ([Asset pipeline](ASSET-PIPELINE.md), RLDR-006); atlases, compilation, caching | RLDR-006, RLDR-007 |
 | `src/adapters/` | MapLab and RigLab readers; the replaceable simulation bridge | RLDR-008, RLDR-011, RLDR-015 |
 | `src/render/` | The PixiJS v8 runtime, capability probes and backends (WebGL2 and WebGPU), the scene graph; later terrain, skeletal, particles, effects | RLDR-003 onward |
 | `src/diagnostics/` | Metrics, profiling, visual parity | RLDR-017 to RLDR-020 |
@@ -90,11 +90,12 @@ Parallax composition beyond this hook, and MapLab camera zones, arrive with RLDR
 
 ## Dependency rules
 
-These rules come from the specification's §5 and §6.3. `npm run check` enforces the first four mechanically: `scripts/check-boundaries.mjs` checks every module's imports, and `tsconfig.core.json` compiles `src/core/` with no DOM library and no Node types. The rest bind every change by review until their tasks add checks.
+These rules come from the specification's §5 and §6.3. `npm run check` enforces the first five mechanically: `scripts/check-boundaries.mjs` checks every module's imports, and `tsconfig.core.json` compiles `src/core/` with no DOM library and no Node types. The rest bind every change by review until their tasks add checks.
 
 - Core contracts never import PixiJS, React or DOM APIs; `src/core/` imports only modules inside itself.
 - PixiJS is imported only under `src/render/`, and React only under `src/demo/`.
 - No source reads the user agent; capabilities come from probing the graphics APIs.
+- `src/assets/` imports only modules inside `src/assets/` and `src/core/`, so asset validation stays independently testable.
 - Simulation adapters never depend on the browser DOM.
 - MapLab and RigLab adapters never import editor code.
 - GPU-specific code stays inside renderer implementations.

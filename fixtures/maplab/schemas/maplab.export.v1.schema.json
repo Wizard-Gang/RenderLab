@@ -1,0 +1,183 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:maplab:schema:maplab.export:1",
+  "title": "maplab.export v1",
+  "type": "object",
+  "properties": {
+    "format": {
+      "const": "maplab.export"
+    },
+    "version": {
+      "const": 1
+    },
+    "entryMapId": {
+      "$ref": "#/$defs/id"
+    },
+    "generator": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "const": "MapLab"
+        },
+        "version": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 96
+        }
+      },
+      "required": [
+        "name",
+        "version"
+      ],
+      "additionalProperties": false
+    },
+    "requiredContracts": {
+      "type": "array",
+      "minItems": 0,
+      "maxItems": 20000,
+      "items": {
+        "$ref": "#/$defs/contract-ref"
+      }
+    },
+    "documents": {
+      "type": "array",
+      "minItems": 0,
+      "maxItems": 20000,
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "$ref": "#/$defs/id"
+          },
+          "format": {
+            "type": "string",
+            "pattern": "^maplab\\.[a-z]+$"
+          },
+          "version": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 9007199254740991
+          },
+          "path": {
+            "$ref": "#/$defs/path"
+          }
+        },
+        "required": [
+          "id",
+          "format",
+          "version",
+          "path"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "files": {
+      "type": "array",
+      "minItems": 0,
+      "maxItems": 20000,
+      "items": {
+        "type": "object",
+        "properties": {
+          "path": {
+            "$ref": "#/$defs/path"
+          },
+          "bytes": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740991
+          },
+          "sha256": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{64}$"
+          },
+          "role": {
+            "enum": [
+              "authored",
+              "asset",
+              "schema",
+              "derived",
+              "foreign"
+            ]
+          }
+        },
+        "required": [
+          "path",
+          "bytes",
+          "sha256",
+          "role"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "externalMaps": {
+      "type": "array",
+      "minItems": 0,
+      "maxItems": 20000,
+      "items": {
+        "type": "object",
+        "properties": {
+          "mapId": {
+            "$ref": "#/$defs/id"
+          },
+          "bundleSha256": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{64}$"
+          }
+        },
+        "required": [
+          "mapId",
+          "bundleSha256"
+        ],
+        "additionalProperties": false
+      }
+    }
+  },
+  "required": [
+    "format",
+    "version",
+    "entryMapId",
+    "generator",
+    "requiredContracts",
+    "documents",
+    "files",
+    "externalMaps"
+  ],
+  "additionalProperties": false,
+  "$defs": {
+    "id": {
+      "description": "Persistent ID: unique across a map's object collections; document IDs unique across a bundle.",
+      "type": "string",
+      "pattern": "^[a-z0-9][a-z0-9._:-]{0,95}$"
+    },
+    "key": {
+      "description": "Catalog and contract key; same grammar as IDs.",
+      "type": "string",
+      "pattern": "^[a-z0-9][a-z0-9._:-]{0,95}$"
+    },
+    "path": {
+      "description": "Bundle-root-relative POSIX path of portable filename characters; reserved device names and case aliases are semantic errors.",
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 240,
+      "pattern": "^[A-Za-z0-9_](?:[A-Za-z0-9._-]*[A-Za-z0-9_-])?(?:/[A-Za-z0-9_](?:[A-Za-z0-9._-]*[A-Za-z0-9_-])?)*$"
+    },
+    "contract-ref": {
+      "type": "object",
+      "properties": {
+        "key": {
+          "$ref": "#/$defs/key"
+        },
+        "version": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 9007199254740991
+        }
+      },
+      "required": [
+        "key",
+        "version"
+      ],
+      "additionalProperties": false
+    }
+  }
+}

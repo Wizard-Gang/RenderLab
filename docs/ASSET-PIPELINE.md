@@ -1,6 +1,6 @@
 # Asset pipeline
 
-Every MapLab, RigLab and compiled asset enters RenderLab through one validated bundle reader in `src/assets/` (specification §8.1, §11.4–11.5, §12). It imports only `src/assets/`, `src/core/` and the Web APIs that browsers and Node share (Web Crypto, `TextDecoder`). It never imports PixiJS, React or the DOM, and `npm run check:boundaries` enforces that.
+Every MapLab, RigLab and compiled asset enters RenderLab through one validated bundle reader in `src/assets/` (specification §8.1, §11.4–11.5, §12). It imports only `src/assets/`, `src/core/` and the Web APIs that browsers and Node share (Web Crypto, `TextDecoder`). It never imports PixiJS, React or the DOM, and `npm run check:boundaries` enforces that. The one exception to Node-and-browser neutrality is the browser rasterizer below, which touches `Image` and a 2D canvas only when it is called.
 
 ## Reading a bundle
 
@@ -51,6 +51,25 @@ Every refusal is a `BundleError` with a stable `code` and `at`. `at` is the entr
 | `inventory.` | `unlisted`, `missing`, `size`, `sha256` |
 | `contract.` | `version`, `duplicate`, `unsupported` |
 | `bundle.` | `digest` |
+
+## Rasterization and atlases
+
+RigLab and MapLab art is SVG; `compileAtlas` in `src/assets/atlases/` turns it into RGBA8 atlas pages, UV regions and a manifest (specification §10, §11.1–11.3). Pixel-art sources follow RigLab's `docs/SVGPIXELART.md` and `riglab.palette` on its live main: whole-pixel rectangles in palette colours, which is what the exactness guarantee below covers.
+
+- **Preparation.** `prepareSvg` (`src/assets/compilation/svg.ts`) refuses anything that reaches outside the document: document types and entities, scripts, `foreignObject`, images, event handlers, `@import` and any `href` or `url()` that is not a `#` fragment. Sources are at most 1 MiB. The source size is the root's pixel `width` and `height`, or its `viewBox`; an explicit `scale` must turn it into whole pixels no larger than 4096 on a side, so pixel art lands on the pixel grid exactly.
+- **Rasterizer.** `browserRasterizer` draws the prepared document through the browser's own SVG renderer into a CPU-backed 2D canvas (`willReadFrequently`, sRGB) and reads back straight-alpha RGBA8. It was chosen over a WebAssembly rasterizer because it needs no dependency, stays React and TypeScript only, and is the renderer the art is authored and previewed in. Any `Rasterizer` can stand in; the tests use a deterministic pattern rasterizer.
+- **Packing.** `pack` is a shelf packer. Items go tallest first, then widest, then by ID, into the first page and shelf with room, so arrival order never changes the result. Each image keeps `extrude` pixels of its own edge repeated outward and `padding` transparent pixels beyond. Pages are the next power of two that holds them, capped at `maxPageSize` (16–16384, at most the device's texture limit); sources spill onto further pages, and one that cannot fit a page with its margins is refused.
+- **UVs and filtering.** Regions are keyed and sorted by stable source ID. `u0 = x / pageWidth` through `u1 = (x + width) / pageWidth` (and likewise for `v`) cover exactly the source rectangle; `validateAtlas` reports any region whose UVs, bounds, order or overlap disagree with its pages. The atlas records `nearest` or `linear` filtering. Linear needs at least one pixel of extrusion; with it, a sample anywhere inside a region's UVs, edges included, reads only that source's pixels under either filter.
+- **Manifest.** `renderlab.atlas` v1 records the compiler (`renderlab-atlas` 1.0.0, bumped whenever the same inputs could give different bytes), the rasterizer's name, version and caller-declared environment, the settings, each source's SHA-256 and size, each page's size, format, byte count and SHA-256, the regions, and the required texture size.
+
+Compilation refuses with a `CompileError` carrying a stable `code` and `at` (a source ID or setting): `svg.root`, `svg.size`, `svg.unsafe`, `raster.shape`, `atlas.id`, `atlas.duplicate`, `atlas.settings` and `atlas.too-large`.
+
+### Determinism guarantees and their limits
+
+- Packing, extrusion, UVs and the manifest are pure functions of the source IDs and sizes and the settings: byte-identical in any environment (Vitest, `tests/assets/atlas.test.ts`).
+- Pixels are identical for the same sources, compiler version, settings and rasterizer environment: one browser engine and version. Repeat rasterization in one browser gives the same bytes (Playwright, `tests/browser/rasterize.spec.ts`).
+- Across engines, whole-pixel rectangles at a whole-number scale (with `shape-rendering="crispEdges"`) come back exact in both Chromium and WebKit. Antialiased edges differ by engine: the documented tolerance is total coverage within 2% of the analytic area, with partially covered pixels only within 1.5 pixels of the true edge. RenderLab makes no claim of cross-engine byte identity beyond that, which is why the manifest records the environment.
+- Compressed GPU texture formats are out of scope (specification §11.3); pages are uncompressed RGBA8.
 
 ## Fixtures and their provenance lock
 

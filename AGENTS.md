@@ -4,7 +4,7 @@ This file is the only required reading. Every other doc is a reference: look up 
 
 ## Start from current state
 
-- Fetch `main` and confirm its exact commit; check open PRs, branches and required checks before choosing work. A handoff or local checkout is context, not proof of provider state.
+- Fetch `main` and the open release branch named in `config/release.json` and confirm their exact commits; check open PRs, branches and required checks before choosing work. A handoff or local checkout is context, not proof of provider state.
 - Read live settings and rulesets only when changing them or investigating drift; the committed authority is `config/github-repository-settings.json`.
 - Preserve uncommitted work and reconcile concurrent changes before editing or merging.
 
@@ -24,16 +24,17 @@ This file is the only required reading. Every other doc is a reference: look up 
 
 ## Controlled delivery
 
-- Branch `rldr-NNN-imperative-summary` from exact current `main` and implement only the task's scope in one controlled commit. Open one PR with the same title; its body must equal the commit body exactly.
-- Agents do not run tests locally: no vitest, Playwright, `node --test`, `npm test`, `npm run test:*` or `npm run check`. CI's required checks run them on the exact head. Validate with pinned `npm ci`, `typecheck`, `build`, the `check:*` scripts, `audit:dependencies` and `git diff --check`, then read the exact-head checks.
-- Before merging, re-fetch the PR and `main`. Every required check must be green on the exact current head and mergeability confirmed; reconcile and revalidate a moved base or head. Squash only that head into `main` with the controlled subject and body. Then confirm one controlled commit on `main`, green post-merge CI and the branch deleted. If a gate cannot pass, leave the branch and PR recoverable and report the exact blocker.
-- Never direct-push or force-push `main`, merge or rebase-merge a controlled PR, bypass required checks, add bypass actors, rewrite published controlled history or weaken immutable release-tag protection.
+- Tasks after RLDR-007 land on the open `release/rNNN` branch. If none is open, cut the next from main's tip with `git push origin main:refs/heads/release/rNNN`. Branch `rldr-NNN-imperative-summary` from its exact tip and implement only the task's scope in one controlled commit. That commit appends the ID to `config/release.json` `tasks`; a release's first task rewrites the file as `{id, branch, tasks}` and appends the previous release to `docs/releases.json`. Open one PR into the release branch with the same title; its body must equal the commit body exactly.
+- Agents do not run tests locally: no vitest, Playwright, `node --test`, `npm test`, `npm run test:*` or `npm run check`. CI runs them. Validate with pinned `npm ci`, `npm run check:gate`, `check:change`, `audit:dependencies` and `git diff --check`, then read the exact-head checks. When a task changes test or runtime code, dispatch the full suite once with `gh workflow run verify.yml --ref <branch>` and one blocking `gh run watch --exit-status`.
+- Required checks are `gate` and `change-id` into `release/*`, and `verify`, `change-id` and `security` into `main`. Before merging, re-fetch the PR and its base: every required check must be green on the exact current head and mergeability confirmed; reconcile and revalidate a moved base or head. Squash only that head into the release branch with the controlled subject and body, then confirm one controlled commit there and the task branch deleted. If a gate cannot pass, leave the branch and PR recoverable and report the exact blocker.
+- Only on the owner's "release", open `release/rNNN` into `main` titled `[RELEASE] rNNN: RLDR-0xx..RLDR-0yy`, wait once for the full suite, and rebase-merge that exact head so main gains one commit per task. Confirm main's tree equals the tested head's tree and the release branch deleted. Fix a red release forward with a task PR into the release branch.
+- Never direct-push or force-push `main` or a release branch, rebase-merge a task PR, squash a release PR, bypass required checks, add bypass actors, rewrite published controlled history or weaken immutable release-tag protection.
 
 ## Commands and credentials
 
 - Use authenticated `gh` for provider reads and PR delivery. `npm run check` needs no token and never mutates providers.
 - `npm run verify:github-settings` is the read-only live comparison. `npm run apply:github-settings` is the only bounded mutation and must re-read and verify. Supply `GH_ADMIN_TOKEN` or an authorized `GH_TOKEN` at runtime only. Never print, commit or store tokens, or redirect the repository identity through environment variables. Report read and write/admin failures separately.
-- Use the exact Node/npm pins in `.node-version` and `package.json`. Keep network advisories outside `check`, and keep the required check names and strict current-with-main policy.
+- Use the exact Node/npm pins in `.node-version` and `package.json`. Keep network advisories outside `check`, and keep the required check names and strict current-with-base policy.
 - Keep the React/TypeScript-only, PixiJS v8 and §5 import boundaries. A worktree's dev server takes its own `RENDERLAB_PORT` and `RENDERLAB_NO_OPEN=1`, never the owner's 5184.
 
 ## Release and deployment

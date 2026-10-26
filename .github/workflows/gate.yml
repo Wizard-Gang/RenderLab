@@ -1,0 +1,40 @@
+name: Feature gate
+
+# Task PRs into the open release branch: the non-test checks only. The full suite runs on the release PR.
+on:
+  pull_request:
+    branches: ['release/**']
+    types: [opened, synchronize, reopened, edited, ready_for_review]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  gate:
+    name: gate
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          fetch-depth: 0
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        with:
+          node-version-file: .node-version
+          cache: npm
+      - name: Install pinned npm
+        run: npm install --global npm@12.1.0
+      - name: Install locked dependencies
+        run: npm ci
+      - name: Run the non-test checks
+        run: npm run check:gate
+      - name: Check committed PR patch
+        env:
+          PATCH_BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          PATCH_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: npm run check:patch

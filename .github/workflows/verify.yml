@@ -1,10 +1,11 @@
-name: CI
+name: Delivery gates
 
+# The full suite: release PRs into main, and an on-demand run for any branch. It satisfies no release-branch gate.
 on:
   pull_request:
-    types: [opened, synchronize, reopened, edited, ready_for_review]
-  push:
     branches: [main]
+    types: [opened, synchronize, reopened, edited, ready_for_review]
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -43,21 +44,6 @@ jobs:
           PATCH_BASE_SHA: ${{ github.event.pull_request.base.sha }}
           PATCH_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
         run: npm run check:patch
-
-  change-id:
-    name: change-id
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
-        with:
-          fetch-depth: 0
-          ref: ${{ github.event.pull_request.head.sha || github.sha }}
-      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
-        with:
-          node-version-file: .node-version
-      - name: Check exact change identity and queue
-        run: npm run check:change
 
   security:
     name: security

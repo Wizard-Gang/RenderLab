@@ -25,7 +25,7 @@ The planned source layout follows the specification's §5:
 | Area | Responsibility | Lands in |
 | --- | --- | --- |
 | `src/core/` | Renderer-neutral contracts: scene model, camera, timeline, lifecycle, capabilities and backend selection | RLDR-002, RLDR-004, RLDR-005 |
-| `src/assets/` | Bundle reading, integrity, content identity and the loading lifecycle ([Asset pipeline](ASSET-PIPELINE.md), RLDR-006); atlases, compilation, caching | RLDR-006, RLDR-007 |
+| `src/assets/` | Bundle reading, integrity, content identity and the loading lifecycle (RLDR-006); SVG rasterization and deterministic texture atlases (RLDR-007), both in [Asset pipeline](ASSET-PIPELINE.md); caching | RLDR-006, RLDR-007 |
 | `src/adapters/` | MapLab and RigLab readers; the replaceable simulation bridge | RLDR-008, RLDR-011, RLDR-015 |
 | `src/render/` | The PixiJS v8 runtime, capability probes and backends (WebGL2 and WebGPU), the scene graph; later terrain, skeletal, particles, effects | RLDR-003 onward |
 | `src/diagnostics/` | Metrics, profiling, visual parity | RLDR-017 to RLDR-020 |

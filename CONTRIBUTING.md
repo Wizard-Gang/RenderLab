@@ -6,7 +6,7 @@ Read [AGENTS.md](AGENTS.md) for the shared controlled-delivery workflow and [REA
 
 `implementation_plan.md` is the permanent current/future queue. Implement its first open task unless the owner explicitly changes priority. Remove a delivered task in its completing change; leave an empty plan tracked when no task remains. If the queue is empty, the next instruction fills it through a controlled plan-only change before implementation begins. An owner-directed plan amendment can append future work while another PR is active; preserve existing IDs and order.
 
-Fetch current `main` and open PRs before editing and again before merging. Reconcile any concurrent plan or base movement, then require the exact current PR head to pass the repository's required CI checks. Squash that validated head once into protected `main`; verify merged-main CI and branch cleanup.
+Fetch current `main`, the open release branch and open PRs before editing and again before merging. Reconcile any concurrent plan or base movement, then require the exact current PR head to pass the required checks for its base. Squash a validated task head once into the open `release/rNNN` branch. On the owner's "release", rebase-merge the release PR's validated head into protected `main` after the full suite; verify that main's tree equals the tested head's tree and branch cleanup.
 
 ## Commands and boundaries
 

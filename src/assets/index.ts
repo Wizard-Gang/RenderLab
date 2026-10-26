@@ -18,3 +18,16 @@ export type { CompatibilityReport, ContractRef, ContractSupport, UnsupportedCont
 export { BUNDLE_LIMITS, NESTED_ARCHIVE, pathProblem } from "./paths";
 export type { BundleLimits } from "./paths";
 export { crc32, readZip } from "./zip";
+export { buildAtlas, validateAtlas } from "./atlases/atlas";
+export type { Atlas, AtlasFilter, AtlasPage, AtlasRegion } from "./atlases/atlas";
+export { ATLAS_COMPILER, ATLAS_ID, compileAtlas } from "./atlases/compile";
+export type { AtlasManifest, AtlasSettings } from "./atlases/compile";
+export { pack } from "./atlases/pack";
+export type { Packing, PackItem, PackSettings, Placement } from "./atlases/pack";
+export { browserRasterizer, rasterizeSvgInBrowser } from "./compilation/browser";
+export { CompileError } from "./compilation/errors";
+export type { CompileErrorCode } from "./compilation/errors";
+export { checkRaster } from "./compilation/rasterizer";
+export type { Raster, Rasterizer, RasterizeRequest, RasterizerIdentity } from "./compilation/rasterizer";
+export { prepareSvg, SVG_LIMITS } from "./compilation/svg";
+export type { PreparedSvg } from "./compilation/svg";

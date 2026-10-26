@@ -6,8 +6,8 @@ import { fileURLToPath } from "node:url";
 
 const root = fileURLToPath(new URL("../", import.meta.url));
 const expectedHashes = {
-  "AGENTS.md": "988ca0e359e168dc3e9f23bdc51b8c3d4fdbbd3ae0992e6df738b3fd40623d1a",
-  "CONTRIBUTING.md": "f28a453e08e8090cd9afca364165c37e9c428e357aa1e2f35354ac620efcb633",
+  "AGENTS.md": "bd9b0195fab0c31c390c50f288c5cbc5244b09d967a092d03cdbea0cc504d6e1",
+  "CONTRIBUTING.md": "90fb65b89c9a1a8f03bb4b597f71e90dc25891065c892ad50ebe7c85943b947c",
   "implementation_plan.md": "59cdf5f8622ee928364b5647474b3a83f502c949bde9562d0a53a33291b090d0",
 };
 

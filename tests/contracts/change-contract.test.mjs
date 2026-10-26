@@ -5,7 +5,7 @@ import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { after, test } from 'node:test';
 import {
-  CONTROLLED_TYPES,
+  CONTROLLED_TYPES, LAST_DIRECT_TASK,
   parseBranch, parseTitle, validateBody, validateHistory, validatePlan, validatePullRequest,
 } from '../../scripts/change-contract.mjs';
 
@@ -136,12 +136,83 @@ test('PR binds exact head, branch, next ID, single commit, and first task retire
   assert.match(validatePullRequest(candidate({ basePlan: emptyPlan, headPlan: emptyPlan })).failures.join(' '), /must publish a future-task plan/);
 });
 
+const r001 = (...tasks) => ({ id: 'r001', branch: 'release/r001', tasks });
+const intoRelease = (overrides = {}) => candidate({
+  targetBranch: 'release/r001', baseRelease: null, headRelease: r001('RLDR-002'),
+  baseReleases: [], headReleases: [], treeOf: () => null, ...overrides,
+});
+
+test('a task PR into the open release branch extends config/release.json', () => {
+  assert.deepEqual(validatePullRequest(intoRelease()).failures, []);
+  assert.deepEqual(validatePullRequest(intoRelease({ baseRelease: r001('RLDR-001'), headRelease: r001('RLDR-001', 'RLDR-002') })).failures, []);
+  assert.match(validatePullRequest(intoRelease({ targetBranch: 'release/r002' })).failures.join(' '), /must target the config\/release.json branch release\/r001/);
+  assert.match(validatePullRequest(intoRelease({ headRelease: r001('RLDR-001', 'RLDR-002') })).failures.join(' '), /tasks must be RLDR-002/);
+  assert.match(validatePullRequest(intoRelease({ headRelease: null })).failures.join(' '), /must be an \{id, branch, tasks\} object/);
+  assert.match(validatePullRequest(intoRelease({ headRelease: { ...r001('RLDR-002'), id: 'r002' } })).failures.join(' '), /branch must be release\/r002/);
+  assert.match(validatePullRequest(intoRelease({ targetBranch: 'release/r1' })).failures.join(' '), /must target main or a release\/rNNN branch/);
+  assert.match(validatePullRequest(intoRelease({ headReleases: [{}] })).failures.join(' '), /changes only in the first task of a release that follows another/);
+});
+
+test(`tasks after RLDR-${String(LAST_DIRECT_TASK).padStart(3, "0")} target a release branch, never main`, () => {
+  const history = Array.from({ length: LAST_DIRECT_TASK }, (_, index) => record(index + 1, index ? `sha-${index}` : null));
+  const head = record(LAST_DIRECT_TASK + 1, history.at(-1).sha);
+  const late = {
+    baseSha: head.parents[0], mergeBaseSha: head.parents[0], baseHistory: history, head,
+    branch: `rldr-${String(LAST_DIRECT_TASK + 1).padStart(3, '0')}-prove-process-contract`, title: head.subject, prBody: head.body,
+    basePlan: plan(LAST_DIRECT_TASK + 1), headPlan: emptyPlan,
+  };
+  assert.match(validatePullRequest(candidate(late)).failures.join(' '), /must target the open release\/rNNN branch/);
+  assert.deepEqual(validatePullRequest(intoRelease({ ...late, headRelease: r001(head.subject.slice(1, 9)) })).failures, []);
+});
+
+test('a release PR carries exactly one commit per listed task under a derived title', () => {
+  const main = record(1);
+  const first = record(2, main.sha);
+  const second = record(3, first.sha);
+  const release = (overrides = {}) => validatePullRequest({
+    baseSha: main.sha, mergeBaseSha: main.sha, targetBranch: 'main', branch: 'release/r001',
+    title: '[RELEASE] r001: RLDR-002..RLDR-003', prBody: '', baseHistory: [main], rangeRecords: [first, second],
+    commitRangeCount: 2, head: second, headRelease: r001('RLDR-002', 'RLDR-003'), basePlan: plan(2, 3), headPlan: emptyPlan,
+    ...overrides,
+  }).failures.join(' ');
+  assert.equal(release(), '');
+  assert.match(release({ title: '[RELEASE] r001: RLDR-002' }), /title must be \[RELEASE\] r001: RLDR-002\.\.RLDR-003/);
+  assert.match(release({ rangeRecords: [first], commitRangeCount: 1 }), /one per listed task \(RLDR-002, RLDR-003\); found RLDR-002/);
+  assert.match(release({ mergeBaseSha: 'stale-base' }), /current with main/);
+  assert.match(release({ commitRangeCount: 3 }), /one first-parent chain/);
+  assert.match(release({ headPlan: plan(3) }), /head plan: RLDR-003: expected RLDR-004/);
+  assert.match(release({ branch: 'release/r002' }), /head must be the config\/release.json branch release\/r001/);
+  assert.match(release({ rangeRecords: [first, { ...second, body: '' }] }), /exactly one Change:/);
+});
+
+test('the first task of the next release records the last one with tree-equality evidence', () => {
+  const mainSha = '1'.repeat(40);
+  const tested = 'a'.repeat(40);
+  const entry = {
+    id: 'r001', pr: 7, testedHead: tested, mainHead: mainSha, tasks: ['RLDR-001'],
+    ci: { conclusion: 'success', url: 'https://github.com/Wizard-Gang/RenderLab/actions/runs/1' },
+  };
+  const next = (headReleases, trees = { [mainSha]: 'tree', [tested]: 'tree' }) => validatePullRequest(candidate({
+    baseSha: mainSha, mergeBaseSha: mainSha, baseHistory: [{ ...record(1), sha: mainSha }],
+    head: { ...record(2), parents: [mainSha] }, targetBranch: 'release/r002',
+    baseRelease: r001('RLDR-001'), headRelease: { id: 'r002', branch: 'release/r002', tasks: ['RLDR-002'] },
+    baseReleases: [], headReleases, treeOf: (sha) => trees[sha] ?? null,
+  })).failures.join(' ');
+  assert.equal(next([entry]), '');
+  assert.match(next([]), /must keep its entries and append r001/);
+  assert.match(next([{ ...entry, ci: { ...entry.ci, conclusion: 'failure' } }]), /successful verify run/);
+  assert.match(next([entry], { [mainSha]: 'tree', [tested]: 'other' }), /mainHead tree must equal the tested head tree/);
+  assert.match(next([entry], { [mainSha]: 'tree' }), /fetch refs\/pull\/7\/head/);
+  assert.match(next([{ ...entry, mainHead: '2'.repeat(40) }]), /mainHead must be the RLDR-001 commit/);
+  assert.match(next([{ ...entry, tasks: [] }]), /tasks must be RLDR-001/);
+});
+
 function command(cwd, program, args, env = {}) {
   const childEnv = { ...process.env };
   for (const name of [
     'GITHUB_EVENT_NAME', 'GITHUB_EVENT_PATH', 'GITHUB_SHA',
     'CHANGE_BASE_SHA', 'CHANGE_HEAD_SHA', 'CHANGE_HEAD_REF',
-    'CHANGE_PR_TITLE', 'CHANGE_PR_BODY',
+    'CHANGE_PR_TITLE', 'CHANGE_PR_BODY', 'CHANGE_BASE_REF',
   ]) delete childEnv[name];
   const result = spawnSync(program, args, { cwd, encoding: 'utf8', env: { ...childEnv, ...env } });
   if (result.error) throw result.error;
@@ -208,7 +279,56 @@ test('CLI reads committed Git state and GitHub PR metadata at the exact head', (
   assert.equal(command(root, process.execPath, ['scripts/check-change.mjs']).status, 0);
 
   git(root, 'switch', '-q', '--detach', 'HEAD');
-  assert.match(command(root, process.execPath, ['scripts/check-change.mjs']).stderr, /detached HEAD: check out main or an rldr-### task branch/);
+  assert.match(command(root, process.execPath, ['scripts/check-change.mjs']).stderr, /detached HEAD: check out main, a release\/rNNN branch or an rldr-### task branch/);
 });
+test('CLI checks a task PR into the release branch and a local release branch as its release PR', () => {
+  const root = mkdtempSync(join(tmpdir(), 'renderlab-release-'));
+  fixtures.push(root);
+  for (const dir of ['scripts', 'docs', 'config']) mkdirSync(join(root, dir));
+  for (const name of ['change-contract.mjs', 'check-change.mjs']) {
+    copyFileSync(join(scriptRoot, 'scripts', name), join(root, 'scripts', name));
+  }
+  git(root, 'init', '-q', '-b', 'main');
+  git(root, 'config', 'user.name', 'RenderLab Test');
+  git(root, 'config', 'user.email', 'renderlab@example.invalid');
+  writeFileSync(join(root, 'package.json'), JSON.stringify({ name: 'renderlab', version: '0.1.0', private: true }) + '\n');
+  writeFileSync(join(root, 'implementation_plan.md'), plan(2, 3));
+  writeFileSync(join(root, 'docs/releases.json'), '[]\n');
+  const mainSha = commit(root, '[RLDR-001] [INIT] Establish renderlab', body());
+  git(root, 'branch', 'release/r001');
+
+  git(root, 'switch', '-q', '-c', 'rldr-002-prove-process-contract');
+  writeFileSync(join(root, 'implementation_plan.md'), plan(3));
+  writeFileSync(join(root, 'config/release.json'), JSON.stringify(r001('RLDR-002'), null, 2) + '\n');
+  const title = '[RLDR-002] [TEST] Prove process contract';
+  const taskSha = commit(root, title, body());
+  const local = command(root, process.execPath, ['scripts/check-change.mjs']);
+  assert.equal(local.status, 0, local.stderr);
+  assert.match(local.stdout, /Controlled RLDR-002 candidate/);
+
+  const eventPath = join(root, 'event.json');
+  const event = {
+    pull_request: { title, body: body(), base: { sha: mainSha, ref: 'release/r001' }, head: { sha: taskSha, ref: 'rldr-002-prove-process-contract' } },
+  };
+  writeFileSync(eventPath, JSON.stringify(event));
+  const env = { GITHUB_EVENT_NAME: 'pull_request', GITHUB_EVENT_PATH: eventPath };
+  assert.equal(command(root, process.execPath, ['scripts/check-change.mjs'], env).status, 0);
+  event.pull_request.base.ref = 'main';
+  writeFileSync(eventPath, JSON.stringify(event));
+  assert.equal(command(root, process.execPath, ['scripts/check-change.mjs'], env).status, 0, 'RLDR-002 predates the cut-over');
+  event.pull_request.base.ref = 'release/r002';
+  writeFileSync(eventPath, JSON.stringify(event));
+  const wrong = command(root, process.execPath, ['scripts/check-change.mjs'], env);
+  assert.equal(wrong.status, 1);
+  assert.match(wrong.stderr, /must target the config\/release.json branch release\/r001/);
+  rmSync(eventPath);
+
+  git(root, 'switch', '-q', 'release/r001');
+  git(root, 'merge', '-q', '--ff-only', 'rldr-002-prove-process-contract');
+  const release = command(root, process.execPath, ['scripts/check-change.mjs']);
+  assert.equal(release.status, 0, release.stderr);
+  assert.match(release.stdout, /Controlled r001 candidate/);
+});
+
 
 after(() => { for (const root of fixtures) rmSync(root, { recursive: true, force: true }); });

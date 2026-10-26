@@ -3,7 +3,7 @@ import { execFileSync, spawnSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { validateHistory, validatePlan, validatePullRequest } from './change-contract.mjs';
+import { parseReleaseBranch, validateHistory, validatePlan, validatePullRequest } from './change-contract.mjs';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const git = (...args) => execFileSync('git', args, { cwd: root, encoding: 'utf8' }).trimEnd();
@@ -31,18 +31,37 @@ function planAt(ref) {
   return git('show', `${ref}:implementation_plan.md`);
 }
 
+function jsonAt(ref, path) {
+  checkedSha(ref, `${path} endpoint`);
+  if (!git('ls-tree', '--name-only', ref, '--', path)) return null;
+  try {
+    return JSON.parse(git('show', `${ref}:${path}`));
+  } catch (error) {
+    throw new Error(`${path} at ${ref} is not valid JSON: ${error.message}`);
+  }
+}
+
+function revision(spec) {
+  const result = spawnSync('git', ['rev-parse', '--verify', '--quiet', spec], {
+    cwd: root, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'],
+  });
+  return result.status === 0 ? result.stdout.trim() : null;
+}
+
+const treeOf = (sha) => revision(`${sha}^{tree}`);
+
 function currentHead() {
   return checkedSha(git('rev-parse', 'HEAD'), 'checked-out HEAD');
 }
 
-// RenderLab has no release workflow yet, so a local check runs on a branch; CI supplies its event context instead.
+// RenderLab has no release workflow, so a local check runs on a branch; CI supplies its event context instead.
 function localBranch() {
   const branch = spawnSync('git', ['symbolic-ref', '--quiet', '--short', 'HEAD'], {
     cwd: root, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'],
   });
   if (branch.status === 0) return branch.stdout.trim();
   if (branch.status !== 1) throw new Error(`unable to inspect local branch: ${branch.stderr.trim()}`);
-  throw new Error('detached HEAD: check out main or an rldr-### task branch, or supply CHANGE_* candidate variables');
+  throw new Error('detached HEAD: check out main, a release/rNNN branch or an rldr-### task branch, or supply CHANGE_* candidate variables');
 }
 
 function validateAccepted(ref) {
@@ -69,6 +88,12 @@ function validateCandidate({ baseSha, headSha, branch, title, targetBranch, prBo
     headPlan: planAt(headSha),
     mergeBaseSha: git('merge-base', baseSha, headSha),
     commitRangeCount: Number(git('rev-list', '--count', `${baseSha}..${headSha}`)),
+    rangeRecords: git('rev-list', '--first-parent', '--reverse', `${baseSha}..${headSha}`).split('\n').filter(Boolean).map(recordAt),
+    baseRelease: jsonAt(baseSha, 'config/release.json'),
+    headRelease: jsonAt(headSha, 'config/release.json'),
+    baseReleases: jsonAt(baseSha, 'docs/releases.json'),
+    headReleases: jsonAt(headSha, 'docs/releases.json'),
+    treeOf,
   });
   return result;
 }
@@ -101,15 +126,30 @@ function contextFromEvent() {
       branch: process.env.CHANGE_HEAD_REF,
       title: process.env.CHANGE_PR_TITLE,
       prBody: process.env.CHANGE_PR_BODY,
-      targetBranch: 'main',
+      targetBranch: process.env.CHANGE_BASE_REF || 'main',
     };
   }
   if (eventName) return { kind: 'accepted', headSha: process.env.GITHUB_SHA || currentHead() };
   const branch = localBranch();
   if (branch === 'main') return { kind: 'accepted', headSha: currentHead() };
-  const baseSha = checkedSha(git('rev-parse', 'main'), 'local main');
+  const mainSha = checkedSha(git('rev-parse', 'main'), 'local main');
   const headSha = currentHead();
-  return { kind: 'candidate', baseSha, headSha, branch, title: recordAt(headSha).subject, targetBranch: 'main', prBody: recordAt(headSha).body };
+  const release = jsonAt(headSha, 'config/release.json');
+  const releaseBranch = parseReleaseBranch(branch);
+  if (releaseBranch) {
+    // A local release branch is checked as its release PR into local main.
+    const tasks = Array.isArray(release?.tasks) ? release.tasks : [];
+    const title = `[RELEASE] ${releaseBranch.id}: ${tasks[0]}${tasks.length > 1 ? `..${tasks.at(-1)}` : ''}`;
+    return { kind: 'candidate', baseSha: mainSha, headSha, branch, title, targetBranch: 'main', prBody: '' };
+  }
+  // A task branch targets the release branch its config/release.json names, when that branch exists locally.
+  const releaseSha = parseReleaseBranch(release?.branch)
+    ? revision(`refs/heads/${release.branch}^{commit}`) ?? revision(`refs/remotes/origin/${release.branch}^{commit}`) : null;
+  const head = recordAt(headSha);
+  return {
+    kind: 'candidate', baseSha: releaseSha ?? mainSha, headSha, branch, title: head.subject,
+    targetBranch: releaseSha ? release.branch : 'main', prBody: head.body,
+  };
 }
 
 try {

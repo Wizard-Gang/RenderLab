@@ -13,12 +13,23 @@ export const REQUIRED_PLAN_FIELDS = Object.freeze([
   'Dependency', 'Why', 'Scope', 'Non-goals', 'Acceptance', 'Tests', 'Validation', 'Documentation', 'Authorities',
 ]);
 
+// Tasks through RLDR-007 merged straight into main. Later tasks squash into the open release/rNNN branch, and
+// main changes only by a release PR that rebase-merges one commit per task.
+export const LAST_DIRECT_TASK = 7;
+
 const titlePattern = /^\[RLDR-(\d{3,})\] \[([A-Z][A-Z0-9]*)\] (\S[^\r\n]*)$/;
+const releaseBranchPattern = /^release\/r(\d{3,})$/;
+const shaPattern = /^[0-9a-f]{40}$/;
+const runUrlPattern = /^https:\/\/github\.com\/Wizard-Gang\/RenderLab\/actions\/runs\/\d+(?:\/job\/\d+)?$/;
 const branchPattern = /^rldr-(\d{3,})-[a-z0-9]+(?:-[a-z0-9]+)*$/;
 const taskPattern = /^### RLDR-(\d{3,}) — \[([A-Z][A-Z0-9]*)\] (\S[^\r\n]*)$/gm;
 
 const id = (number) => `RLDR-${String(number).padStart(3, '0')}`;
 const normalizeBody = (value) => value.replaceAll('\r\n', '\n').replace(/\n+$/, '');
+const releaseId = (number) => `r${String(number).padStart(3, '0')}`;
+const sameList = (actual, expected) => Array.isArray(actual) && actual.length === expected.length
+  && expected.every((value, index) => actual[index] === value);
+const isObject = (value) => value !== null && typeof value === 'object' && !Array.isArray(value);
 
 export function parseTitle(subject) {
   const match = titlePattern.exec(subject);
@@ -121,9 +132,122 @@ export function validatePlan(markdown, nextId) {
   return { failures, tasks: tasks.map(({ id: taskId, number, type, summary }) => ({ id: taskId, number, type, summary })) };
 }
 
-export function validatePullRequest(context) {
+export function parseReleaseBranch(ref) {
+  const match = releaseBranchPattern.exec(ref ?? '');
+  return match && match[1] === String(Number(match[1])).padStart(3, '0') && Number(match[1]) > 0
+    ? { id: releaseId(Number(match[1])), number: Number(match[1]) } : null;
+}
+
+/** config/release.json names the open release: `{ id: "r001", branch: "release/r001", tasks: ["RLDR-008", ...] }`. */
+export function validateReleaseConfig(config, label = 'config/release.json') {
+  if (!isObject(config)) return [`${label} must be an {id, branch, tasks} object`];
   const failures = [];
-  if (context.targetBranch !== 'main') failures.push('controlled PR must target main');
+  if (Object.keys(config).sort().join() !== 'branch,id,tasks') failures.push(`${label} must hold only id, branch and tasks`);
+  if (parseReleaseBranch(config.branch)?.id !== config.id) failures.push(`${label}: branch must be release/${config.id} for id ${config.id}`);
+  const tasks = Array.isArray(config.tasks) ? config.tasks : [];
+  if (!tasks.length) failures.push(`${label}: tasks must list the release's RLDR IDs`);
+  tasks.forEach((task, index) => {
+    const number = Number(String(task).slice(5));
+    if (task !== id(number) || (index > 0 && number !== Number(tasks[index - 1].slice(5)) + 1)) {
+      failures.push(`${label}: tasks must be consecutive canonical RLDR IDs`);
+    }
+  });
+  return [...new Set(failures)];
+}
+
+/** A docs/releases.json entry proves main's tree after a release equals the tree its release PR tested. */
+export function validateReleaseEntry(entry, release, { history, treeOf }) {
+  const label = `docs/releases.json ${release.id}`;
+  if (!isObject(entry)) return [`${label}: entry is missing`];
+  const failures = [];
+  if (Object.keys(entry).sort().join() !== 'ci,id,mainHead,pr,tasks,testedHead') {
+    failures.push(`${label} must hold only id, pr, testedHead, ci, mainHead and tasks`);
+  }
+  if (entry.id !== release.id) failures.push(`${label}: id must be ${release.id}`);
+  if (!sameList(entry.tasks, release.tasks)) failures.push(`${label}: tasks must be ${release.tasks.join(', ')}`);
+  if (!Number.isInteger(entry.pr) || entry.pr < 1) failures.push(`${label}: pr must be the release PR number`);
+  if (entry.ci?.conclusion !== 'success' || !runUrlPattern.test(entry.ci?.url ?? '')) {
+    failures.push(`${label}: ci must be the release PR's successful verify run {conclusion, url}`);
+  }
+  for (const field of ['testedHead', 'mainHead']) {
+    if (!shaPattern.test(entry[field] ?? '')) failures.push(`${label}: ${field} must be a full commit SHA`);
+  }
+  if (failures.length) return failures;
+  const main = history.find((record) => record.sha === entry.mainHead);
+  if (parseTitle(main?.subject ?? '')?.id !== release.tasks.at(-1)) {
+    failures.push(`${label}: mainHead must be the ${release.tasks.at(-1)} commit on main`);
+  }
+  const testedTree = treeOf(entry.testedHead);
+  if (!testedTree) failures.push(`${label}: tested head ${entry.testedHead} is not in this checkout; fetch refs/pull/${entry.pr}/head`);
+  else if (testedTree !== treeOf(entry.mainHead)) failures.push(`${label}: mainHead tree must equal the tested head tree`);
+  return failures;
+}
+
+function validateReleaseTask(context, title, failures) {
+  const head = context.headRelease;
+  const configFailures = validateReleaseConfig(head, 'head config/release.json');
+  failures.push(...configFailures);
+  if (configFailures.length || !title) return;
+  if (head.branch !== context.targetBranch) failures.push(`PR must target the config/release.json branch ${head.branch}`);
+  const base = isObject(context.baseRelease) ? context.baseRelease : null;
+  const continuing = base?.id === head.id;
+  const tasks = continuing ? [...base.tasks, title.id] : [title.id];
+  if (!sameList(head.tasks, tasks)) failures.push(`config/release.json tasks must be ${tasks.join(', ')}`);
+  const baseLedger = context.baseReleases ?? [];
+  const headLedger = context.headReleases;
+  if (!Array.isArray(baseLedger) || !Array.isArray(headLedger)) {
+    failures.push('docs/releases.json must be a JSON array');
+    return;
+  }
+  const appends = !continuing && base !== null;
+  if (headLedger.length !== baseLedger.length + (appends ? 1 : 0)
+      || baseLedger.some((entry, index) => JSON.stringify(entry) !== JSON.stringify(headLedger[index]))) {
+    failures.push(appends
+      ? `docs/releases.json must keep its entries and append ${base.id}`
+      : 'docs/releases.json changes only in the first task of a release that follows another');
+  }
+  if (continuing) return;
+  const next = releaseId((base ? parseReleaseBranch(base.branch)?.number ?? 0 : 0) + 1);
+  if (head.id !== next) failures.push(`the first task of a release must open ${next}`);
+  if (appends && headLedger.length === baseLedger.length + 1) {
+    failures.push(...validateReleaseEntry(headLedger.at(-1), base, { history: context.baseHistory, treeOf: context.treeOf }));
+  }
+}
+
+/** The release PR, release/rNNN into main: exactly one task commit per config/release.json task, oldest first. */
+export function validateReleasePullRequest(context) {
+  const failures = [];
+  const release = parseReleaseBranch(context.branch);
+  const head = context.headRelease;
+  const configFailures = validateReleaseConfig(head, 'head config/release.json');
+  failures.push(...configFailures);
+  const tasks = configFailures.length ? [] : head.tasks;
+  if (!configFailures.length) {
+    if (head.branch !== context.branch) failures.push(`release PR head must be the config/release.json branch ${head.branch}`);
+    const expectedTitle = `[RELEASE] ${release.id}: ${tasks[0]}${tasks.length > 1 ? `..${tasks.at(-1)}` : ''}`;
+    if (context.title !== expectedTitle) failures.push(`release PR title must be ${expectedTitle}`);
+  }
+  const base = validateHistory(context.baseHistory);
+  const history = validateHistory([...context.baseHistory, ...context.rangeRecords]);
+  failures.push(...history.failures);
+  if (context.mergeBaseSha !== context.baseSha || context.rangeRecords[0]?.parents[0] !== context.baseSha) {
+    failures.push('release branch must be current with main');
+  }
+  if (context.commitRangeCount !== context.rangeRecords.length) failures.push('release range must be one first-parent chain');
+  const ids = context.rangeRecords.map((record) => parseTitle(record.subject)?.id ?? record.sha);
+  if (!sameList(ids, tasks)) {
+    failures.push(`release commits must be one per listed task (${tasks.join(', ')}); found ${ids.join(', ') || 'none'}`);
+  }
+  failures.push(...validatePlan(context.basePlan, base.lastId + 1).failures.map((failure) => `base plan: ${failure}`));
+  failures.push(...validatePlan(context.headPlan, history.lastId + 1).failures.map((failure) => `head plan: ${failure}`));
+  return { failures, nextId: release.id };
+}
+
+export function validatePullRequest(context) {
+  if (context.targetBranch === 'main' && parseReleaseBranch(context.branch)) return validateReleasePullRequest(context);
+  const failures = [];
+  const release = parseReleaseBranch(context.targetBranch);
+  if (context.targetBranch !== 'main' && !release) failures.push('controlled PR must target main or a release/rNNN branch');
   const baseHistory = validateHistory(context.baseHistory);
   failures.push(...baseHistory.failures);
   const expected = baseHistory.lastId + 1;
@@ -138,6 +262,9 @@ export function validatePullRequest(context) {
   }
   if (title && branch && title.id !== branch.id) failures.push(`branch ${branch.id} does not match PR ${title.id}`);
   if (title && title.number !== expected) failures.push(`PR must use next sequential ${id(expected)}`);
+  if (title && !release && title.number > LAST_DIRECT_TASK) {
+    failures.push(`${title.id} must target the open release/rNNN branch; main changes only by release PR`);
+  }
   if (context.mergeBaseSha !== context.baseSha || context.head.parents.length !== 1 || context.head.parents[0] !== context.baseSha) {
     failures.push('PR head must be a direct child of the current base commit');
   }
@@ -164,5 +291,6 @@ export function validatePullRequest(context) {
       if (headPlan.tasks[index]?.id !== task.id) failures.push(`${task.id}: future task was removed or reordered`);
     });
   }
+  if (release) validateReleaseTask(context, title, failures);
   return { failures, nextId: id(expected) };
 }

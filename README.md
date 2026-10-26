@@ -2,12 +2,12 @@
 
 RenderLab is a reusable, GPU-native 2D rendering platform for browser games. It presents worlds authored in [MapLab](https://github.com/Wizard-Gang/MapLab) and characters and animation authored in [RigLab](https://github.com/Wizard-Gang/RigLab) through [PixiJS v8](https://pixijs.com/), with WebGL2 as the initial production backend and WebGPU as a fully supported, independently validated backend. It is not a game engine. A separate game or reference simulation owns authoritative state, and RenderLab only presents it: **author once, compile once, render anywhere.**
 
-The [governing specification](docs/specifications/2026-10-18-renderlab.md) defines the platform and its baseline tasks, `RLDR-001`…`RLDR-021`. Governance, the toolchain, CI, the renderer-neutral core contracts (scene model, scene store, presentation snapshots and renderer lifecycle), the PixiJS v8 runtime on WebGL2 and WebGPU with capability-based backend selection, the 2D camera with smooth and strict-pixel policies, and a reference application are in place. The renderer, asset pipeline and adapters follow in specification order through the [implementation plan](implementation_plan.md). [Architecture](docs/ARCHITECTURE.md) records what exists and the boundaries it enforces. [Testing](docs/TESTING.md) describes the test layers.
+The [governing specification](docs/specifications/2026-10-18-renderlab.md) defines the platform and its baseline tasks, `RLDR-001`…`RLDR-021`. Governance, the toolchain, CI, the renderer-neutral core contracts (scene model, scene store, presentation snapshots and renderer lifecycle), the PixiJS v8 runtime on WebGL2 and WebGPU with capability-based backend selection, the 2D camera with smooth and strict-pixel policies, the validated bundle reader, SVG rasterization into deterministic texture atlases, and a reference application are in place. The renderer, asset pipeline and adapters follow in specification order through the [implementation plan](implementation_plan.md). [Architecture](docs/ARCHITECTURE.md) records what exists and the boundaries it enforces. [Testing](docs/TESTING.md) describes the test layers.
 
-Controlled changes use the `RLDR-###` namespace and the title and body format in [Change management](docs/CHANGE-MANAGEMENT.md). Required PR checks are `verify`, `change-id` and `security` on the exact head. The committed [GitHub settings](config/github-repository-settings.json) require:
+Controlled changes use the `RLDR-###` namespace and the title and body format in [Change management](docs/CHANGE-MANAGEMENT.md). Task PRs squash into the open `release/rNNN` branch after `gate` and `change-id` pass on the exact head; the release PR rebase-merges into `main` after `verify`, `change-id` and `security`. The committed [GitHub settings](config/github-repository-settings.json) require:
 
-- current-with-main status;
-- squash-only merges and automatic completed-branch deletion;
+- current-with-base status;
+- rebase-only linear `main`, squash-only release branches and automatic completed-branch deletion;
 - zero bypass actors;
 - immutable Releases and immutable `v*` tags.
 
@@ -47,6 +47,7 @@ Ctrl-C, `SIGTERM` or closing the terminal stops the server. A second `npm start`
 | Install exact dependencies | `npm ci` | Local install from the committed lockfile |
 | Start the reference application | `npm start` | Runs `npm run dev`: teardown, reset, install, build, then the Vite dev server on 5184 |
 | Repository acceptance | `npm run check` | Plan queue, workflow shell, repository and specification contracts, architecture boundaries, contract tests, types (including the DOM-free core), unit tests, build and change identity |
+| Release-branch gate | `npm run check:gate` | The non-test checks CI's `gate` runs: plan queue, workflow shell, repository contract, architecture boundaries, fixtures, types and build |
 | Unit tests | `npm test` | Vitest in the node environment |
 | Browser tests | `npm run test:browser` | Playwright against the production build in Chromium and WebKit, including pixel readback on WebGL2 and WebGPU. Install the browsers once with `npx playwright install chromium webkit` |
 | Dependency advisory gate | `npm run audit:dependencies` | Network-backed npm registry query that fails on high or critical advisories |

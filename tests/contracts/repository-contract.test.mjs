@@ -9,7 +9,9 @@ import {
 const root = new URL('../../', import.meta.url);
 const read = (path) => readFileSync(new URL(path, root), 'utf8');
 const current = () => ({
-  ci: read('.github/workflows/ci.yml'),
+  verify: read('.github/workflows/verify.yml'),
+  gate: read('.github/workflows/gate.yml'),
+  change: read('.github/workflows/change.yml'),
   pkg: JSON.parse(read('package.json')),
   lock: JSON.parse(read('package-lock.json')),
   provider: JSON.parse(read('config/github-repository-settings.json')),
@@ -57,7 +59,7 @@ test('RenderLab never deploys', () => {
   assert.match(failuresWith((state) => { state.pkg.scripts.ship = 'wrangler deploy'; }), /must never deploy/);
   assert.match(failuresWith((state) => { state.pkg.devDependencies.wrangler = '4.147.0'; }), /must not depend on wrangler/);
   assert.match(failuresWith((state) => {
-    state.ci = state.ci.replace('    name: security\n', '    name: security\n    environment: production\n');
+    state.verify = state.verify.replace('    name: security\n', '    name: security\n    environment: production\n');
   }), /workflows must never deploy/);
 });
 
@@ -76,30 +78,56 @@ test('PixiJS v8 is the one rendering library', () => {
   assert.match(failuresWith((state) => { state.pkg.dependencies.three = '0.180.0'; }), /must not include three/);
 });
 
-test('CI keeps the three required jobs on the exact head with a read-only token', () => {
-  assert.match(failuresWith((state) => { state.ci = state.ci.replace('  security:', '  audit:'); }), /verify, change-id, security/);
-  assert.match(failuresWith((state) => { state.ci = state.ci.replace('contents: read', 'contents: write'); }), /read-only/);
+test('delivery workflows expose the required jobs on the exact head with a read-only token and no push runs', () => {
+  assert.match(failuresWith((state) => { state.verify = state.verify.replace('  security:', '  audit:'); }), /exactly the verify, security jobs/);
+  assert.match(failuresWith((state) => { state.gate = state.gate.replace('contents: read', 'contents: write'); }), /gate\.yml default token must be read-only/);
   assert.match(failuresWith((state) => {
-    state.ci = state.ci.replace('run: npm run check:change', 'run: echo skipped');
+    state.change = state.change.replace('run: npm run check:change', 'run: echo skipped');
   }), /change-id must validate exact PR identity/);
   assert.match(failuresWith((state) => {
-    state.ci = state.ci.replace(/actions\/checkout@[0-9a-f]{40}/, 'actions/checkout@v7');
+    state.change = state.change.replace(/\n {6}- name: Fetch merged release PR heads[^\n]*\n[^\n]*/, '');
+  }), /fetch merged PR heads for the release ledger/);
+  assert.match(failuresWith((state) => {
+    state.verify = state.verify.replace(/actions\/checkout@[0-9a-f]{40}/, 'actions/checkout@v7');
   }), /pinned to a full commit SHA/);
+  assert.match(failuresWith((state) => {
+    state.verify = state.verify.replace('  workflow_dispatch:\n', '  workflow_dispatch:\n  push:\n    branches: [main]\n');
+  }), /verify\.yml must trigger only on PRs and workflow_dispatch, never on push/);
+  assert.match(failuresWith((state) => { state.gate = state.gate.replace("branches: ['release/**']", 'branches: [main]'); }),
+    /gate\.yml must run on PRs into release\/\*\*/);
+  assert.match(failuresWith((state) => {
+    state.gate = state.gate.replace('    runs-on: ubuntu-latest\n', "    if: github.actor != 'bot'\n    runs-on: ubuntu-latest\n");
+  }), /gate must always run/);
 });
 
 test('the required verify job runs the browser tests on Chromium and WebKit', () => {
-  assert.match(failuresWith((state) => { state.ci = state.ci.replace('run: npm run test:browser', 'run: echo skipped'); }),
+  assert.match(failuresWith((state) => { state.verify = state.verify.replace('run: npm run test:browser', 'run: echo skipped'); }),
     /verify must run the browser tests/);
-  assert.match(failuresWith((state) => { state.ci = state.ci.replace('chromium webkit', 'chromium'); }),
+  assert.match(failuresWith((state) => { state.verify = state.verify.replace('chromium webkit', 'chromium'); }),
     /install the Chromium and WebKit browsers/);
 });
 
-test('provider policy is squash-only, current-with-main and bypass-free', () => {
-  assert.match(failuresWith((state) => { state.provider.mergeMethods.rebase = true; }), /squash-only baseline/);
+test('the release-branch gate runs only the non-test checks', () => {
+  assert.match(failuresWith((state) => { state.gate = state.gate.replace('run: npm run check:gate', 'run: npm run check'); }),
+    /gate must run the non-test checks/);
+  assert.match(failuresWith((state) => { state.pkg.scripts['check:gate'] += ' && vitest run'; }), /check:gate must run only the non-test checks/);
+  assert.match(failuresWith((state) => { state.pkg.scripts['check:gate'] += ' && npm run test:browser'; }), /independent of downloaded browsers/);
+  assert.match(failuresWith((state) => { delete state.pkg.scripts['check:gate']; }), /missing package script check:gate/);
+});
+
+test('provider policy is rebase-only into main, squash-only into release/* and bypass-free', () => {
+  assert.match(failuresWith((state) => { state.provider.mergeMethods.rebase = false; }), /only squash and rebase merges/);
   assert.match(failuresWith((state) => { state.provider.immutableReleases = false; }), /immutable Releases/);
-  assert.match(failuresWith((state) => { state.provider.rulesets[0].bypassActors = [{ actor_id: 1 }]; }), /no bypass actors/);
-  assert.match(failuresWith((state) => { state.provider.requiredStatusChecks = ['verify']; }), /match CI job names/);
-  assert.match(failuresWith((state) => { state.provider.repository = 'Wizard-Gang/baseline'; }), /squash-only baseline/);
+  assert.match(failuresWith((state) => { state.provider.rulesets[0].bypassActors = [{ actor_id: 1 }]; }), /main ruleset must enforce/);
+  assert.match(failuresWith((state) => { state.provider.rulesets[0].allowedMergeMethods = ['squash']; }), /main must accept PRs by rebase merge only/);
+  assert.match(failuresWith((state) => { state.provider.rulesets[0].rules.splice(3, 1); }), /required_linear_history/);
+  assert.match(failuresWith((state) => { state.provider.rulesets[0].requiredStatusChecks = ['verify']; }), /main required checks must match/);
+  assert.match(failuresWith((state) => { state.provider.rulesets[1].allowedMergeMethods = ['rebase']; }), /release\/\* must accept PRs by squash merge only/);
+  assert.match(failuresWith((state) => { state.provider.rulesets[1].requiredStatusChecks = ['verify', 'change-id']; }),
+    /release\/\* required checks must match the gate\.yml and change\.yml jobs/);
+  assert.match(failuresWith((state) => { state.provider.rulesets[1].rules.unshift('deletion'); }), /release\/\* ruleset must enforce/);
+  assert.match(failuresWith((state) => { state.provider.rulesets.splice(1, 1); }), /exactly the main and release\/\* branch rulesets/);
+  assert.match(failuresWith((state) => { state.provider.repository = 'Wizard-Gang/baseline'; }), /only squash and rebase merges/);
 });
 
 test('RenderLab stays React and TypeScript: no Rust, Cargo or Tauri files, dependencies or scripts', () => {

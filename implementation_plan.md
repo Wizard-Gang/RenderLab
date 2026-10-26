@@ -4,24 +4,6 @@
 
 The tasks below are the remaining baseline tasks reserved by the governing specification, [2026-10-18-renderlab.md](docs/specifications/2026-10-18-renderlab.md) §20, in its order. Each one is delivered by its own controlled PR. Before an adapter task, re-read the live `Wizard-Gang/MapLab` and `Wizard-Gang/RigLab` main branches (§3): their formats can change between sessions, and fixtures copied from them carry a provenance pin.
 
-### RLDR-007 — [FEAT] Rasterize SVG artwork into deterministic texture atlases
-
-- Dependency: RLDR-006 (bundles, identity, compiled manifest).
-- Why: RigLab art is SVG and must become GPU textures without one texture per part (§10, §11.1–11.3).
-- Scope: `src/assets/compilation/` and `src/assets/atlases/` provide:
-  - SVG-to-raster compilation at an explicit resolution;
-  - deterministic atlas packing, with padding and extrusion against bleeding, over multiple pages within device texture limits;
-  - UV metadata keyed by stable asset IDs, and a nearest or linear filtering policy;
-  - a compiled resource manifest (source identity, compiler version, settings, sizes, hashes, dimensions, required features) that records the rasterization toolchain.
-
-  The rasterizer must stay React and TypeScript only. The browser's own SVG rasterization or a WebAssembly rasterizer are the candidates; choose one with evidence.
-- Non-goals: No compressed GPU texture formats yet (evaluate only, §11.3), no baked character frames (RLDR-014), and no claim of cross-platform byte identity without evidence.
-- Acceptance: The same inputs, compiler version and settings give identical atlas bytes in the declared environment. UVs land on the exact source rectangles. Pixel-art sources survive nearest sampling with no bleeding.
-- Tests: Vitest covers packing determinism and UV validation. Playwright compares rasterization in Chromium and WebKit within the documented tolerance.
-- Validation: The standard set.
-- Documentation: `docs/ASSET-PIPELINE.md` covers rasterization, atlases, and the determinism guarantees and their limits.
-- Authorities: Specification §10, §11. On RigLab's live main: its pixel-art and palette rules (`docs/SVGPIXELART.md`, `riglab.palette`).
-
 ### RLDR-008 — [FEAT] Adapt MapLab exports into the scene model
 
 - Dependency: RLDR-007 in queue order; technically RLDR-006's bundle reader.

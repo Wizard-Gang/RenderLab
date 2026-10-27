@@ -3,9 +3,10 @@
 import { SMOOTH_SNAPPED, STRICT_PIXEL, type ActiveBackend, type PixelPolicy, type RendererBackend, type SceneDefinition } from "../../core";
 import { gridScene } from "../scenes/grid";
 import { referenceScene } from "../scenes/reference";
+import { terrainScene } from "../scenes/terrain";
 
 export const BACKENDS: readonly RendererBackend[] = ["auto", "webgl2", "webgpu"];
-export const SCENES = Object.freeze({ reference: referenceScene, grid: gridScene });
+export const SCENES = Object.freeze({ reference: referenceScene, grid: gridScene, terrain: terrainScene });
 export const VIEW_SIZES = Object.freeze(["480x270", "640x360", "320x180"] as const);
 
 export type SceneName = keyof typeof SCENES;
@@ -28,7 +29,7 @@ export function optionsFromLocation(search = globalThis.location?.search ?? ""):
   return {
     backend: pick("backend", BACKENDS, "auto"),
     preference: pick<ActiveBackend>("prefer", ["webgl2", "webgpu"], "webgl2"),
-    scene: pick<SceneName>("scene", ["reference", "grid"], "reference"),
+    scene: pick<SceneName>("scene", ["reference", "grid", "terrain"], "reference"),
     pixel: pick<"smooth" | "strict">("pixel", ["smooth", "strict"], "smooth"),
     view: pick<ViewSize>("view", VIEW_SIZES, "480x270"),
   };

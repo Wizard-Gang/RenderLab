@@ -27,7 +27,7 @@ export type { SceneSnapshot } from "./scene/store";
 export { LifecycleError, RendererLifecycle } from "./lifecycle/state";
 export type { LifecycleEvent, LifecycleOperation, LifecycleState } from "./lifecycle/state";
 export { checkViewport, emptyDiagnostics } from "./lifecycle/runtime";
-export type { ActiveBackend, Metric, RecoveryEvent, RendererBackend, RendererDiagnostics, RendererRuntime, Viewport } from "./lifecycle/runtime";
+export type { ActiveBackend, Metric, RecoveryEvent, RendererBackend, RendererDiagnostics, RendererRuntime, TerrainDiagnostics, Viewport } from "./lifecycle/runtime";
 export { maxTextureEdge, webgl2Unavailable, webgpuUnavailable } from "./capabilities/model";
 export type { Capabilities, WebGL2Capability, WebGPUAdapterInfo, WebGPUCapability } from "./capabilities/model";
 export { AUTO_PREFERENCE, backendName, BackendSelectionError, planBackends, selectBackend } from "./capabilities/selection";

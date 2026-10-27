@@ -6,14 +6,19 @@ import {
   LifecycleError, maxTextureEdge, planBackends, RendererLifecycle, SceneStore, selectBackend, SMOOTH_SNAPPED,
   type ActiveBackend, type BackendAttempt, type CameraView, type Capabilities, type PixelPolicy, type PresentationSnapshot,
   type RecoveryEvent,
-  type RendererBackend, type RendererDiagnostics, type RendererRuntime, type ResourceId, type SceneChange,
+  type RendererBackend, type RendererDiagnostics, type RendererRuntime, type ResourceDescriptor, type ResourceId,
   type SceneDefinition, type SceneDelta, type SceneDirty, type Viewport,
 } from "../../core";
 import { probeCapabilities } from "../backends/probe";
 import type { BackendSettings, StartedBackend } from "../backends/started";
 import { UnsupportedSceneError } from "../errors";
 import { checkTexturePixels, MAX_TEXTURE_EDGE, premultiplied, type TexturePixels, type TextureProvider } from "../textures";
-import { PixiSceneGraph, SUPPORTED_KINDS, unsupportedObjects } from "./scene-graph";
+import type { LoadedTileset } from "../terrain/chunks";
+import { tilesetProblems } from "../terrain/geometry";
+import { DEFAULT_TERRAIN, terrainSettingsProblems, type TerrainSettings } from "../terrain/residency";
+import { countDrawCalls } from "./draw-calls";
+import { refusals } from "./refusals";
+import { PixiSceneGraph, unsupportedObjects } from "./scene-graph";
 
 export interface PixiRuntimeOptions {
   /** The element the canvas is appended to. */
@@ -30,11 +35,18 @@ export interface PixiRuntimeOptions {
   readonly capabilities?: Capabilities;
   /** How the camera meets the device pixel grid; smooth with a snapped origin by default (specification §10). */
   readonly pixelPolicy?: PixelPolicy;
+  /** Terrain preload margin and chunk budget; `DEFAULT_TERRAIN` where omitted (specification §12.4, §15.2). */
+  readonly terrain?: Partial<TerrainSettings>;
 }
 
 interface TextureEntry {
   readonly texture: Texture;
   readonly bytes: number;
+}
+
+interface TilesetEntry {
+  readonly loaded: LoadedTileset;
+  readonly pages: readonly TextureEntry[];
 }
 
 const describe = (error: unknown): string => (error instanceof Error ? error.message : String(error));
@@ -52,25 +64,19 @@ function createTexture(pixels: TexturePixels): TextureEntry {
   return { texture: new Texture({ source }), bytes: pixels.width * pixels.height * 4 };
 }
 
-/** Why a delta cannot be presented, checked before the scene store changes so a refused delta changes nothing. */
-function refusals(delta: SceneDelta, loaded: (id: unknown) => boolean): string[] {
-  return (Array.isArray(delta) ? delta : []).flatMap((change: SceneChange, index) => {
-    const at = `delta[${index}]`;
-    if (change?.op === "add" && change.object && !SUPPORTED_KINDS.includes(change.object.kind)) {
-      return unsupportedObjects([change.object]).map((reason) => `${at}: ${reason}`);
-    }
-    if (change?.op === "add" && change.object?.kind === "sprite" && !loaded(change.object.texture)) {
-      return [`${at}: texture ${change.object.texture} was not declared when the scene mounted`];
-    }
-    if (change?.op === "update" && change.patch && "texture" in change.patch && !loaded(change.patch.texture)) {
-      return [`${at}: texture ${String(change.patch.texture)} was not declared when the scene mounted`];
-    }
-    if (change?.op === "add-resource" && change.resource?.kind === "texture" && !loaded(change.resource.id)) {
-      return [`${at}: textures are loaded when a scene mounts; on-demand loading arrives with RLDR-006`];
-    }
-    return [];
-  });
+async function loadTileset(provider: TextureProvider, resource: ResourceDescriptor, maxEdge: number): Promise<TilesetEntry> {
+  if (!provider.tileset) throw new UnsupportedSceneError([`tileset ${resource.id}: the texture provider supplies no tilesets`]);
+  const atlas = await provider.tileset(resource);
+  const problems = tilesetProblems(atlas);
+  if (problems.length) throw new ContractError(`tileset ${resource.id}`, problems);
+  const pages = atlas.pages.map((page, index) => createTexture(checkTexturePixels(`${resource.id} page ${index}`, page, maxEdge)));
+  const regions = new Map(atlas.regions.map((region) => [region.id, region]));
+  return { loaded: { textures: pages.map((page) => page.texture), regions }, pages };
 }
+
+const releaseTileset = (entry: TilesetEntry) => {
+  for (const page of entry.pages) page.texture.destroy(true);
+};
 
 export class PixiRuntime implements RendererRuntime {
   readonly #options: PixiRuntimeOptions;
@@ -85,14 +91,21 @@ export class PixiRuntime implements RendererRuntime {
   #graph: PixiSceneGraph | null = null;
   #view: CameraView | null = null;
   #textures = new Map<ResourceId, TextureEntry>();
+  #tilesets = new Map<ResourceId, TilesetEntry>();
+  readonly #terrain: TerrainSettings;
   #frames = 0;
+  #draws = 0;
+  #frameDraws: number | null = null;
   readonly #recoveries: RecoveryEvent[] = [];
 
   constructor(options: PixiRuntimeOptions) {
     const failures = new Failures();
     checkViewport(failures, "viewport", options.viewport);
     if (options.backend !== undefined && !["auto", "webgl2", "webgpu"].includes(options.backend)) failures.add("backend", 'must be "auto", "webgl2" or "webgpu"');
+    const terrain = { ...DEFAULT_TERRAIN, ...options.terrain };
+    for (const problem of terrainSettingsProblems(terrain)) failures.add(`terrain.${problem.slice(0, problem.indexOf(":"))}`, problem.slice(problem.indexOf(":") + 2));
     failures.throwIfAny("renderer options");
+    this.#terrain = terrain;
     this.#options = options;
     this.#requested = options.backend ?? "auto";
     this.#viewport = { ...options.viewport };
@@ -125,6 +138,9 @@ export class PixiRuntime implements RendererRuntime {
       this.#recoveries.push({ at: 0, kind: "fallback", detail: `${attempt.backend} ${attempt.outcome}: ${attempt.reason}; started ${started.backend}` });
     }
     started.onLost((detail) => this.#lose(detail));
+    countDrawCalls(started.renderer, () => {
+      this.#draws += 1;
+    });
     this.#options.container.appendChild(started.canvas);
     this.#started = started;
     this.#stage = new Container({ label: "renderlab.stage" });
@@ -140,23 +156,31 @@ export class PixiRuntime implements RendererRuntime {
     const maxEdge = (this.#capabilities && this.#started && maxTextureEdge(this.#capabilities, this.#started.backend)) || MAX_TEXTURE_EDGE;
     // Every declared texture loads now, so later deltas can use any of them synchronously.
     const loaded = new Map<ResourceId, TextureEntry>();
+    const tilesets = new Map<ResourceId, TilesetEntry>();
     let graph: PixiSceneGraph;
     try {
       for (const resource of snapshot.resources) {
+        if (resource.kind === "tileset") {
+          tilesets.set(resource.id, this.#tilesets.get(resource.id) ?? await loadTileset(this.#options.textures, resource, maxEdge));
+          continue;
+        }
         if (resource.kind !== "texture") continue;
         const reused = this.#textures.get(resource.id);
         if (reused) loaded.set(resource.id, reused);
         else loaded.set(resource.id, createTexture(checkTexturePixels(resource.id, await this.#options.textures.texture(resource), maxEdge)));
       }
       if (!this.#lifecycle.can("mountScene")) throw new LifecycleError(`the renderer became ${this.#lifecycle.state} while the scene loaded`);
-      graph = new PixiSceneGraph(store, (id) => (loaded.get(id) as TextureEntry).texture);
+      graph = new PixiSceneGraph(store, (id) => (loaded.get(id) as TextureEntry).texture, (id) => (tilesets.get(id) as TilesetEntry).loaded, this.#terrain);
     } catch (error) {
       for (const [id, entry] of loaded) if (!this.#textures.has(id)) entry.texture.destroy(true);
+      for (const [id, entry] of tilesets) if (!this.#tilesets.has(id)) releaseTileset(entry);
       throw error;
     }
     this.#graph?.destroy();
     for (const [id, entry] of this.#textures) if (!loaded.has(id)) entry.texture.destroy(true);
+    for (const [id, entry] of this.#tilesets) if (!tilesets.has(id)) releaseTileset(entry);
     this.#textures = loaded;
+    this.#tilesets = tilesets;
     this.#graph = graph;
     this.#applyView();
     (this.#stage as Container).addChild(graph.root);
@@ -165,15 +189,22 @@ export class PixiRuntime implements RendererRuntime {
 
   applySceneDelta(delta: SceneDelta): SceneDirty {
     this.#lifecycle.assert("applySceneDelta");
-    const refused = refusals(delta, (id) => this.#textures.has(id as ResourceId));
-    if (refused.length) throw new UnsupportedSceneError(refused);
     const graph = this.#graph as PixiSceneGraph;
+    const refused = refusals(delta, {
+      texture: (id) => this.#textures.has(id as ResourceId),
+      tiles: (id) => this.#tilesets.get(id as ResourceId)?.loaded.regions,
+      object: (id) => graph.store.object(id),
+    });
+    if (refused.length) throw new UnsupportedSceneError(refused);
     const dirty = graph.store.apply(delta);
     graph.apply(dirty);
     if (dirty.camera) this.#applyView();
     for (const id of dirty.resources.removed) {
       this.#textures.get(id)?.texture.destroy(true);
       this.#textures.delete(id);
+      const tileset = this.#tilesets.get(id);
+      if (tileset) releaseTileset(tileset);
+      this.#tilesets.delete(id);
     }
     return dirty;
   }
@@ -187,7 +218,9 @@ export class PixiRuntime implements RendererRuntime {
   render(alpha: number): void {
     this.#lifecycle.assert("render");
     if (!Number.isFinite(alpha) || alpha < 0 || alpha > 1) throw new ContractError("render alpha", ["alpha: must be from 0 to 1"]);
+    this.#draws = 0;
     (this.#started as StartedBackend).renderer.render(this.#stage as Container);
+    this.#frameDraws = this.#draws;
     this.#frames += 1;
   }
 
@@ -204,18 +237,28 @@ export class PixiRuntime implements RendererRuntime {
   getDiagnostics(): RendererDiagnostics {
     const base = emptyDiagnostics(this.#requested, this.#lifecycle.state);
     let bytes = 0;
+    let textures = this.#textures.size;
     for (const entry of this.#textures.values()) bytes += entry.bytes;
+    for (const entry of this.#tilesets.values()) {
+      textures += entry.pages.length;
+      for (const page of entry.pages) bytes += page.bytes;
+    }
+    const terrain = this.#graph?.terrainStats();
     return {
       ...base,
       backend: { requested: this.#requested, active: this.#started?.backend ?? null, failure: this.#lifecycle.failure, attempts: [...this.#attempts] },
       capabilities: this.#capabilities,
       view: this.#view,
       frames: { ...base.frames, rendered: this.#frames },
-      scene: { ...base.scene, id: this.#graph?.store.id ?? null, revision: this.#graph?.store.revision ?? null },
+      scene: { ...base.scene, id: this.#graph?.store.id ?? null, revision: this.#graph?.store.revision ?? null, visibleChunks: terrain?.active ?? 0 },
       gpu: {
-        contexts: this.#contexts, drawCalls: null, textures: this.#textures.size,
+        contexts: this.#contexts, drawCalls: this.#frameDraws === null ? null : { value: this.#frameDraws, basis: "counted" }, textures,
         textureBytes: this.#started ? { value: bytes, basis: "estimated" } : null,
       },
+      terrain: terrain ? {
+        chunks: terrain.chunks, active: terrain.active, resident: terrain.resident, budget: terrain.budget, builds: terrain.builds,
+        rebuilds: terrain.rebuilds, evictions: terrain.evictions, meshes: terrain.meshes,
+      } : null,
       recoveries: [...this.#recoveries],
     };
   }
@@ -228,6 +271,8 @@ export class PixiRuntime implements RendererRuntime {
     this.#view = null;
     for (const entry of this.#textures.values()) entry.texture.destroy(true);
     this.#textures = new Map();
+    for (const entry of this.#tilesets.values()) releaseTileset(entry);
+    this.#tilesets = new Map();
     this.#stage?.destroy({ children: true });
     this.#stage = null;
     const started = this.#started;

@@ -1,7 +1,7 @@
 // Textures generated in code for the reference scene, until RLDR-006/RLDR-007 compile real artwork. Pixels are straight
 // RGBA8; the runtime premultiplies them, and the glass texel's partial alpha shows both backends do it the same way.
 import type { ResourceDescriptor } from "../../core";
-import type { TexturePixels, TextureProvider } from "../../render";
+import type { TexturePixels, TextureProvider, TilesetAtlas } from "../../render";
 
 type Rgb = readonly [number, number, number];
 
@@ -55,7 +55,39 @@ export const REFERENCE_TEXTURES: Readonly<Record<string, TexturePixels>> = Objec
   ),
 });
 
+/** Colours of the marker tile's quadrants, which show every turn and mirror at a glance. */
+export const MARKER = Object.freeze({
+  topLeft: [255, 0, 77] as Rgb,
+  topRight: [255, 236, 39] as Rgb,
+  bottomRight: [41, 173, 255] as Rgb,
+  bottomLeft: [255, 255, 255] as Rgb,
+});
+export const VARIANTS = Object.freeze({ grass: [0, 135, 81] as Rgb, stone: [131, 118, 156] as Rgb });
+
+/**
+ * The terrain scene's tileset as a compiled two-page atlas: the 4×4 marker tile alone on page 0, and two one-texel
+ * variant tiles side by side on page 1, so a chunk using both submits one mesh per page.
+ */
+export const REFERENCE_TILESETS: Readonly<Record<string, TilesetAtlas>> = Object.freeze({
+  "tileset.marker": {
+    pages: [
+      fromRows(["RRYY", "RRYY", "WWBB", "WWBB"], { R: MARKER.topLeft, Y: MARKER.topRight, B: MARKER.bottomRight, W: MARKER.bottomLeft }),
+      fromRows(["GS"], { G: VARIANTS.grass, S: VARIANTS.stone }),
+    ],
+    regions: [
+      { id: "tile.grass", page: 1, u0: 0, v0: 0, u1: 0.5, v1: 1 },
+      { id: "tile.marker", page: 0, u0: 0, v0: 0, u1: 1, v1: 1 },
+      { id: "tile.stone", page: 1, u0: 0.5, v0: 0, u1: 1, v1: 1 },
+    ],
+  },
+});
+
 export const referenceTextures: TextureProvider = {
+  async tileset(resource: ResourceDescriptor): Promise<TilesetAtlas> {
+    const tileset = REFERENCE_TILESETS[resource.id];
+    if (!tileset) throw new Error(`the demo scenes have no tileset ${resource.id}`);
+    return tileset;
+  },
   async texture(resource: ResourceDescriptor): Promise<TexturePixels> {
     const pixels = REFERENCE_TEXTURES[resource.id];
     if (!pixels) throw new Error(`the reference scene has no texture ${resource.id}`);

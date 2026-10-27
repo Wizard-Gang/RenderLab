@@ -50,6 +50,7 @@ Ctrl-C, `SIGTERM` or closing the terminal stops the server. A second `npm start`
 | Release-branch gate | `npm run check:gate` | The non-test checks CI's `gate` runs: plan queue, workflow shell, repository contract, architecture boundaries, fixtures, types and build |
 | Unit tests | `npm test` | Vitest in the node environment |
 | Browser tests | `npm run test:browser` | Playwright against the production build in Chromium and WebKit, including pixel readback on WebGL2 and WebGPU. Install the browsers once with `npx playwright install chromium webkit` |
+| Terrain batching benchmark | `npm run bench:terrain` | Node-only geometry build and residency measurements behind `docs/PERFORMANCE.md`; no GPU, browser or network |
 | Dependency advisory gate | `npm run audit:dependencies` | Network-backed npm registry query that fails on high or critical advisories |
 | Committed patch whitespace | `npm run check:patch` | Needs `PATCH_BASE_SHA` and `PATCH_HEAD_SHA` |
 | Live GitHub settings check | `npm run verify:github-settings` | Read-only provider comparison. Needs an administration-readable `GH_ADMIN_TOKEN` or `GH_TOKEN` |

@@ -1,6 +1,7 @@
 // How a renderer obtains texture pixels. RLDR-006/RLDR-007 provide the real compiled-asset provider; until then the
 // reference application generates its textures in code.
 import { ContractError, type ResourceDescriptor } from "../core";
+import type { TilesetAtlas } from "./terrain/geometry";
 
 export interface TexturePixels {
   readonly width: number;
@@ -14,6 +15,8 @@ export interface TexturePixels {
 export interface TextureProvider {
   /** The pixels of one `texture` resource. A rejection names the resource and why. */
   texture(resource: ResourceDescriptor): Promise<TexturePixels>;
+  /** The compiled atlas of one `tileset` resource, its region IDs the tileset's tile IDs. Scenes with terrain need it. */
+  tileset?(resource: ResourceDescriptor): Promise<TilesetAtlas>;
 }
 
 /** The texture edge every WebGL2 and WebGPU device supports; probed limits raise it per device. */

@@ -41,6 +41,22 @@ export interface RecoveryEvent {
   readonly detail: string;
 }
 
+/** Terrain chunk residency (specification §8.2, §15.2): sizes now, and counters since the scene mounted. */
+export interface TerrainDiagnostics {
+  readonly chunks: number;
+  /** Chunks submitted: inside the view plus its preload margin. */
+  readonly active: number;
+  /** Chunks with built geometry, active or kept for reuse; at most `budget` unless the view itself needs more. */
+  readonly resident: number;
+  readonly budget: number;
+  readonly builds: number;
+  /** Rebuilds of active chunks whose cells changed. */
+  readonly rebuilds: number;
+  readonly evictions: number;
+  /** Meshes the active chunks submit, one per chunk per atlas page used. */
+  readonly meshes: number;
+}
+
 export interface RendererDiagnostics {
   readonly state: LifecycleState;
   /** `attempts` lists each backend tried in order and how it went, so a fallback is always visible. */
@@ -64,6 +80,8 @@ export interface RendererDiagnostics {
   readonly scene: { readonly id: string | null; readonly revision: number | null; readonly visibleChunks: number; readonly visibleCharacters: number; readonly activeParticles: number };
   /** `contexts` counts the graphics contexts this runtime holds; destroy must bring it and `textures` to 0. */
   readonly gpu: { readonly contexts: number; readonly drawCalls: Metric | null; readonly textures: number; readonly textureBytes: Metric | null };
+  /** Null with no scene mounted. */
+  readonly terrain: TerrainDiagnostics | null;
   readonly recoveries: readonly RecoveryEvent[];
 }
 
@@ -76,6 +94,7 @@ export function emptyDiagnostics(requested: RendererBackend, state: LifecycleSta
     frames: { rendered: 0, fps: null, averageFrameMs: null, p95FrameMs: null, updateCpuMs: null },
     scene: { id: null, revision: null, visibleChunks: 0, visibleCharacters: 0, activeParticles: 0 },
     gpu: { contexts: 0, drawCalls: null, textures: 0, textureBytes: null },
+    terrain: null,
     recoveries: [],
   };
 }

@@ -39,6 +39,23 @@ test('src/assets/ imports only modules inside src/assets/ or src/core/', () => {
   assert.match(failuresOf('src/assets/bundle.ts', 'import { draw } from "../render/pixi/runtime";'), /found "\.\.\/render\/pixi\/runtime"/);
 });
 
+test('src/adapters/maplab/ imports only itself, src/assets/, src/core/ and the pinned MapLab schemas', () => {
+  const allowed = [
+    'import { readBundle } from "../../assets";',
+    'import { canonicalJson } from "../../core";',
+    'import { MapLabError } from "./errors";',
+    'import map from "../../../fixtures/maplab/schemas/maplab.map.v1.schema.json";',
+  ].join('\n');
+  assert.equal(failuresOf('src/adapters/maplab/index.ts', allowed), '');
+  const refused = /src\/adapters\/maplab\/ may import only modules inside src\/adapters\/maplab\/, src\/assets\/ or src\/core\/, or fixtures\/maplab\/schemas\/\*\.json; found/;
+  assert.match(failuresOf('src/adapters/maplab/index.ts', 'import { readFile } from "node:fs";'), refused);
+  assert.match(failuresOf('src/adapters/maplab/scene.ts', 'import { draw } from "../../render/pixi/runtime";'), /found "\.\.\/\.\.\/render\/pixi\/runtime"/);
+  assert.match(failuresOf('src/adapters/maplab/scene.ts', 'import { readRig } from "../riglab";'), /found "\.\.\/riglab"/);
+  assert.match(failuresOf('src/adapters/maplab/scene.ts', 'import { read } from "../../../../MapLab/src/export/bundle";'), refused);
+  assert.match(failuresOf('src/adapters/maplab/schemas.ts', 'import forest from "../../../fixtures/maplab/forest-export/manifest.json";'), refused);
+  assert.match(failuresOf('src/adapters/maplab/schemas.ts', 'import helper from "../../../fixtures/maplab/schemas/helper.ts";'), refused);
+});
+
 test('PixiJS stays in src/render/ and React in src/demo/', () => {
   assert.equal(failuresOf('src/render/pixi/adapter.ts', 'import { Application } from "pixi.js";'), '');
   assert.equal(failuresOf('src/demo/ui/App.tsx', 'import { StrictMode } from "react";\nimport { createRoot } from "react-dom/client";'), '');

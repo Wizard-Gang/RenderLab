@@ -3,6 +3,8 @@
 // - src/core/ is self-contained: only relative imports that stay inside src/core/, and no JSX;
 // - src/assets/ is renderer-neutral: only relative imports inside src/assets/ or src/core/, so asset validation is
 //   independently testable;
+// - src/adapters/maplab/ reads MapLab exports without MapLab code: only relative imports inside src/adapters/maplab/,
+//   src/assets/ or src/core/, or of MapLab's pinned published schemas fixtures/maplab/schemas/*.json;
 // - PixiJS is imported only under src/render/, so GPU-specific code stays inside renderer implementations;
 // - React is imported only under src/demo/, so React stays application UI;
 // - no source reads the user agent: capabilities come from probing the graphics APIs (specification §6.3).
@@ -23,6 +25,7 @@ const SPECIFIERS = [
 const PIXI = /^(?:pixi\.js|@pixi\/.+)(?:\/.*)?$/;
 const REACT = /^(?:react|react-dom)(?:\/.*)?$/;
 const USER_AGENT = /\buserAgent(?:Data)?\b/;
+const MAPLAB_SCHEMA = /^fixtures\/maplab\/schemas\/[^/]+\.json$/;
 
 export function moduleSpecifiers(source) {
   const found = new Set();
@@ -36,6 +39,7 @@ export function checkBoundaries(files) {
   for (const { path, source } of files) {
     const inCore = path.startsWith('src/core/');
     const inAssets = path.startsWith('src/assets/');
+    const inMapLab = path.startsWith('src/adapters/maplab/');
     if (inCore && /\.(?:tsx|jsx)$/.test(path)) failures.push(`${path}: src/core/ holds no JSX; React belongs to src/demo/`);
     if (USER_AGENT.test(source)) failures.push(`${path}: never read the user agent; probe the graphics APIs instead`);
     for (const specifier of moduleSpecifiers(source)) {
@@ -52,6 +56,14 @@ export function checkBoundaries(files) {
         const target = relativeImport ? posix.normalize(posix.join(posix.dirname(path), specifier)) : null;
         if (!target?.startsWith('src/assets/') && !target?.startsWith('src/core/')) {
           failures.push(`${path}: src/assets/ may import only modules inside src/assets/ or src/core/; found ${JSON.stringify(specifier)}`);
+        }
+      }
+      if (inMapLab) {
+        const relativeImport = specifier.startsWith('./') || specifier.startsWith('../');
+        const target = relativeImport ? posix.normalize(posix.join(posix.dirname(path), specifier)) : null;
+        const inside = target !== null && ['src/adapters/maplab/', 'src/assets/', 'src/core/'].some((prefix) => `${target}/`.startsWith(prefix));
+        if (!inside && !MAPLAB_SCHEMA.test(target ?? '')) {
+          failures.push(`${path}: src/adapters/maplab/ may import only modules inside src/adapters/maplab/, src/assets/ or src/core/, or fixtures/maplab/schemas/*.json; found ${JSON.stringify(specifier)}`);
         }
       }
       if (PIXI.test(specifier) && !path.startsWith('src/render/')) {

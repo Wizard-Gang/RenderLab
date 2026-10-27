@@ -1,0 +1,645 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:maplab:schema:maplab.navigation:1",
+  "title": "maplab.navigation v1",
+  "type": "object",
+  "properties": {
+    "format": {
+      "const": "maplab.navigation"
+    },
+    "version": {
+      "const": 1
+    },
+    "mapId": {
+      "$ref": "#/$defs/id"
+    },
+    "profileId": {
+      "$ref": "#/$defs/id"
+    },
+    "identity": {
+      "type": "object",
+      "properties": {
+        "sourceSha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "profileSha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "controller": {
+          "$ref": "#/$defs/contract-ref"
+        },
+        "settingsSha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "solvers": {
+          "type": "array",
+          "minItems": 0,
+          "maxItems": 256,
+          "items": {
+            "$ref": "#/$defs/contract-ref"
+          }
+        }
+      },
+      "required": [
+        "sourceSha256",
+        "profileSha256",
+        "controller",
+        "settingsSha256",
+        "solvers"
+      ],
+      "additionalProperties": false
+    },
+    "settings": {
+      "type": "object",
+      "properties": {
+        "cellSizeWU": {
+          "$ref": "#/$defs/length"
+        },
+        "maxFallTicks": {
+          "$ref": "#/$defs/ticks"
+        },
+        "maxDurationTicks": {
+          "$ref": "#/$defs/ticks"
+        },
+        "maxActionDepth": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        },
+        "maxCandidatesPerPair": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        },
+        "jumpHoldTicks": {
+          "type": "array",
+          "minItems": 0,
+          "maxItems": 256,
+          "items": {
+            "$ref": "#/$defs/ticks"
+          }
+        },
+        "airControlDelays": {
+          "type": "array",
+          "minItems": 0,
+          "maxItems": 256,
+          "items": {
+            "$ref": "#/$defs/ticks"
+          }
+        },
+        "flightCellWU": {
+          "$ref": "#/$defs/length"
+        },
+        "checkpointEveryTicks": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 9007199254740991
+        }
+      },
+      "required": [
+        "cellSizeWU",
+        "maxFallTicks",
+        "maxDurationTicks",
+        "maxActionDepth",
+        "maxCandidatesPerPair",
+        "jumpHoldTicks",
+        "airControlDelays",
+        "flightCellWU",
+        "checkpointEveryTicks"
+      ],
+      "additionalProperties": false
+    },
+    "nodes": {
+      "type": "array",
+      "minItems": 0,
+      "maxItems": 20000,
+      "items": {
+        "type": "object",
+        "properties": {
+          "key": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 256
+          },
+          "intervalKey": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 256
+              }
+            ]
+          },
+          "state": {
+            "$ref": "#/$defs/nav-state"
+          }
+        },
+        "required": [
+          "key",
+          "intervalKey",
+          "state"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "edges": {
+      "type": "array",
+      "minItems": 0,
+      "maxItems": 20000,
+      "items": {
+        "type": "object",
+        "properties": {
+          "key": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 256
+          },
+          "from": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 256
+          },
+          "to": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 256
+          },
+          "kind": {
+            "$ref": "#/$defs/key"
+          },
+          "solver": {
+            "$ref": "#/$defs/contract-ref"
+          },
+          "requiredAbilities": {
+            "type": "array",
+            "minItems": 0,
+            "maxItems": 20000,
+            "items": {
+              "$ref": "#/$defs/key"
+            },
+            "uniqueItems": true
+          },
+          "conditions": {
+            "type": "array",
+            "minItems": 0,
+            "maxItems": 256,
+            "items": {
+              "$ref": "#/$defs/condition"
+            }
+          },
+          "costTicks": {
+            "$ref": "#/$defs/ticks"
+          },
+          "penaltyTicks": {
+            "$ref": "#/$defs/ticks"
+          },
+          "witnessKey": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 256
+              }
+            ]
+          },
+          "sourceIds": {
+            "type": "array",
+            "minItems": 0,
+            "maxItems": 20000,
+            "items": {
+              "$ref": "#/$defs/id"
+            },
+            "uniqueItems": true
+          },
+          "sweptBounds": {
+            "$ref": "#/$defs/rect"
+          },
+          "status": {
+            "enum": [
+              "verified",
+              "conditional"
+            ]
+          }
+        },
+        "required": [
+          "key",
+          "from",
+          "to",
+          "kind",
+          "solver",
+          "requiredAbilities",
+          "conditions",
+          "costTicks",
+          "penaltyTicks",
+          "witnessKey",
+          "sourceIds",
+          "sweptBounds",
+          "status"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "witnesses": {
+      "type": "array",
+      "minItems": 0,
+      "maxItems": 20000,
+      "items": {
+        "type": "object",
+        "properties": {
+          "key": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 256
+          },
+          "initial": {
+            "$ref": "#/$defs/nav-state"
+          },
+          "terminal": {
+            "$ref": "#/$defs/nav-state"
+          },
+          "durationTicks": {
+            "$ref": "#/$defs/ticks"
+          },
+          "inputs": {
+            "type": "array",
+            "minItems": 0,
+            "maxItems": 20000,
+            "items": {
+              "type": "object",
+              "properties": {
+                "fromTick": {
+                  "$ref": "#/$defs/ticks"
+                },
+                "moveX": {
+                  "enum": [
+                    -1,
+                    0,
+                    1
+                  ]
+                },
+                "moveY": {
+                  "enum": [
+                    -1,
+                    0,
+                    1
+                  ]
+                },
+                "run": {
+                  "type": "boolean"
+                },
+                "jump": {
+                  "type": "boolean"
+                },
+                "drop": {
+                  "type": "boolean"
+                },
+                "dash": {
+                  "type": "boolean"
+                }
+              },
+              "required": [
+                "fromTick",
+                "moveX",
+                "moveY",
+                "run",
+                "jump",
+                "drop",
+                "dash"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "checkpoints": {
+            "type": "array",
+            "minItems": 0,
+            "maxItems": 20000,
+            "items": {
+              "type": "object",
+              "properties": {
+                "tick": {
+                  "$ref": "#/$defs/ticks"
+                },
+                "state": {
+                  "$ref": "#/$defs/nav-state"
+                }
+              },
+              "required": [
+                "tick",
+                "state"
+              ],
+              "additionalProperties": false
+            }
+          }
+        },
+        "required": [
+          "key",
+          "initial",
+          "terminal",
+          "durationTicks",
+          "inputs",
+          "checkpoints"
+        ],
+        "additionalProperties": false
+      }
+    }
+  },
+  "required": [
+    "format",
+    "version",
+    "mapId",
+    "profileId",
+    "identity",
+    "settings",
+    "nodes",
+    "edges",
+    "witnesses"
+  ],
+  "additionalProperties": false,
+  "$defs": {
+    "id": {
+      "description": "Persistent ID: unique across a map's object collections; document IDs unique across a bundle.",
+      "type": "string",
+      "pattern": "^[a-z0-9][a-z0-9._:-]{0,95}$"
+    },
+    "key": {
+      "description": "Catalog and contract key; same grammar as IDs.",
+      "type": "string",
+      "pattern": "^[a-z0-9][a-z0-9._:-]{0,95}$"
+    },
+    "coordinate": {
+      "description": "World units on the 1/16 WU quantum within ±131,072 WU (2^17).",
+      "type": "number",
+      "multipleOf": 0.0625,
+      "minimum": -131072,
+      "maximum": 131072
+    },
+    "length": {
+      "description": "Positive length on the 1/16 WU quantum, at most 262,144 WU (2^18).",
+      "type": "number",
+      "multipleOf": 0.0625,
+      "exclusiveMinimum": 0,
+      "maximum": 262144
+    },
+    "rect": {
+      "description": "x, y, width, height in WU; the far edges must also stay within range.",
+      "type": "array",
+      "prefixItems": [
+        {
+          "$ref": "#/$defs/coordinate"
+        },
+        {
+          "$ref": "#/$defs/coordinate"
+        },
+        {
+          "$ref": "#/$defs/length"
+        },
+        {
+          "$ref": "#/$defs/length"
+        }
+      ],
+      "items": false,
+      "minItems": 4,
+      "maxItems": 4
+    },
+    "ticks": {
+      "description": "Duration in integer ticks at the declared 60 Hz.",
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 9007199254740991
+    },
+    "contract-ref": {
+      "type": "object",
+      "properties": {
+        "key": {
+          "$ref": "#/$defs/key"
+        },
+        "version": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 9007199254740991
+        }
+      },
+      "required": [
+        "key",
+        "version"
+      ],
+      "additionalProperties": false
+    },
+    "condition": {
+      "oneOf": [
+        {
+          "$ref": "#/$defs/flag-condition"
+        },
+        {
+          "$ref": "#/$defs/ability-condition"
+        },
+        {
+          "$ref": "#/$defs/state-condition"
+        },
+        {
+          "$ref": "#/$defs/terms-condition"
+        },
+        {
+          "$ref": "#/$defs/not-condition"
+        }
+      ]
+    },
+    "flag-condition": {
+      "type": "object",
+      "properties": {
+        "kind": {
+          "const": "flag"
+        },
+        "id": {
+          "$ref": "#/$defs/id"
+        },
+        "equals": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "kind",
+        "id",
+        "equals"
+      ],
+      "additionalProperties": false
+    },
+    "ability-condition": {
+      "type": "object",
+      "properties": {
+        "kind": {
+          "const": "ability"
+        },
+        "tag": {
+          "$ref": "#/$defs/key"
+        }
+      },
+      "required": [
+        "kind",
+        "tag"
+      ],
+      "additionalProperties": false
+    },
+    "state-condition": {
+      "type": "object",
+      "properties": {
+        "kind": {
+          "const": "entityState"
+        },
+        "entityId": {
+          "$ref": "#/$defs/id"
+        },
+        "state": {
+          "$ref": "#/$defs/key"
+        }
+      },
+      "required": [
+        "kind",
+        "entityId",
+        "state"
+      ],
+      "additionalProperties": false
+    },
+    "terms-condition": {
+      "type": "object",
+      "properties": {
+        "kind": {
+          "enum": [
+            "all",
+            "any"
+          ]
+        },
+        "terms": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 256,
+          "items": {
+            "$ref": "#/$defs/condition"
+          }
+        }
+      },
+      "required": [
+        "kind",
+        "terms"
+      ],
+      "additionalProperties": false
+    },
+    "not-condition": {
+      "type": "object",
+      "properties": {
+        "kind": {
+          "const": "not"
+        },
+        "term": {
+          "$ref": "#/$defs/condition"
+        }
+      },
+      "required": [
+        "kind",
+        "term"
+      ],
+      "additionalProperties": false
+    },
+    "nav-state": {
+      "type": "object",
+      "properties": {
+        "x": {
+          "type": "integer",
+          "minimum": -9007199254740991,
+          "maximum": 9007199254740991
+        },
+        "y": {
+          "type": "integer",
+          "minimum": -9007199254740991,
+          "maximum": 9007199254740991
+        },
+        "vx": {
+          "type": "integer",
+          "minimum": -9007199254740991,
+          "maximum": 9007199254740991
+        },
+        "vy": {
+          "type": "integer",
+          "minimum": -9007199254740991,
+          "maximum": 9007199254740991
+        },
+        "mode": {
+          "enum": [
+            "ground",
+            "air",
+            "climb",
+            "wall",
+            "ledge",
+            "swim",
+            "fly",
+            "grapple",
+            "dash"
+          ]
+        },
+        "supportId": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "$ref": "#/$defs/id"
+            }
+          ]
+        },
+        "traversalId": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "$ref": "#/$defs/id"
+            }
+          ]
+        },
+        "resources": {
+          "type": "array",
+          "minItems": 0,
+          "maxItems": 256,
+          "items": {
+            "type": "object",
+            "properties": {
+              "key": {
+                "$ref": "#/$defs/key"
+              },
+              "value": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991
+              }
+            },
+            "required": [
+              "key",
+              "value"
+            ],
+            "additionalProperties": false
+          }
+        }
+      },
+      "required": [
+        "x",
+        "y",
+        "vx",
+        "vy",
+        "mode",
+        "supportId",
+        "traversalId",
+        "resources"
+      ],
+      "additionalProperties": false
+    }
+  }
+}

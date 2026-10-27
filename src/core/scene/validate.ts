@@ -6,7 +6,7 @@ import {
   checkBoolean, checkColor, checkFinite, checkInteger, checkTransform, checkUnit, checkVec2, isRecord,
 } from "../contracts/values";
 import { checkAnimation } from "../timeline/animation";
-import { CHUNK_CELLS, RESOURCE_KINDS, type ResourceKind, type SceneObject, type SceneObjectKind } from "./model";
+import { CHUNK_CELLS, MAX_SHAPE_POINTS, RESOURCE_KINDS, type ResourceKind, type SceneObject, type SceneObjectKind } from "./model";
 
 export function checkKeys(failures: Failures, path: string, value: Record<string, unknown>, allowed: readonly string[]): void {
   for (const key of Object.keys(value)) {
@@ -75,6 +75,7 @@ const BASE_FIELDS = ["id", "kind", "layerId", "mobility", "visible", "sortKey", 
 const KIND_FIELDS: Record<SceneObjectKind, readonly string[]> = {
   sprite: ["transform", "texture", "anchor", "tint", "alpha"],
   "tile-chunk": ["tileset", "grid", "column", "row", "cells"],
+  shape: ["transform", "geometry", "fill", "alpha"],
   character: ["transform", "rig", "animation", "appearance", "presentation"],
   particles: ["transform", "effect", "budget"],
   effect: ["transform", "effect", "params"],
@@ -84,6 +85,7 @@ const KIND_FIELDS: Record<SceneObjectKind, readonly string[]> = {
 export const PATCH_FIELDS: Record<SceneObjectKind, readonly string[]> = {
   sprite: ["layerId", "visible", "sortKey", "transform", "texture", "anchor", "tint", "alpha"],
   "tile-chunk": ["layerId", "visible", "sortKey", "tileset", "cells"],
+  shape: ["layerId", "visible", "sortKey", "transform", "geometry", "fill", "alpha"],
   character: ["layerId", "visible", "sortKey", "transform", "animation", "appearance", "presentation"],
   particles: ["layerId", "visible", "sortKey", "transform", "effect", "budget"],
   effect: ["layerId", "visible", "sortKey", "transform", "effect", "params"],
@@ -101,6 +103,33 @@ export function checkTileCell(failures: Failures, path: string, value: unknown):
   if (![0, 1, 2, 3].includes(value.quarterTurns as number)) failures.add(`${path}.quarterTurns`, "must be 0, 1, 2 or 3");
   checkBoolean(failures, `${path}.mirrorX`, value.mirrorX);
   checkBoolean(failures, `${path}.mirrorY`, value.mirrorY);
+}
+
+function checkPositive(failures: Failures, path: string, value: unknown): void {
+  if (checkFinite(failures, path, value) && value <= 0) failures.add(path, "must be positive");
+}
+
+export function checkGeometry(failures: Failures, path: string, value: unknown): void {
+  if (!isRecord(value)) {
+    failures.add(path, "must be a rect, circle or polygon geometry");
+    return;
+  }
+  if (value.kind === "rect") {
+    checkKeys(failures, path, value, ["kind", "x", "y", "width", "height"]);
+    checkFinite(failures, `${path}.x`, value.x);
+    checkFinite(failures, `${path}.y`, value.y);
+    checkPositive(failures, `${path}.width`, value.width);
+    checkPositive(failures, `${path}.height`, value.height);
+  } else if (value.kind === "circle") {
+    checkKeys(failures, path, value, ["kind", "center", "radius"]);
+    checkVec2(failures, `${path}.center`, value.center);
+    checkPositive(failures, `${path}.radius`, value.radius);
+  } else if (value.kind === "polygon") {
+    checkKeys(failures, path, value, ["kind", "points"]);
+    if (!Array.isArray(value.points) || value.points.length < 3 || value.points.length > MAX_SHAPE_POINTS) {
+      failures.add(`${path}.points`, `must list 3 to ${MAX_SHAPE_POINTS} points`);
+    } else value.points.forEach((point, index) => checkVec2(failures, `${path}.points[${index}]`, point));
+  } else failures.add(`${path}.kind`, 'must be "rect", "circle" or "polygon"');
 }
 
 function checkKindFields(failures: Failures, path: string, value: Record<string, unknown>, kind: SceneObjectKind): void {
@@ -125,6 +154,10 @@ function checkKindFields(failures: Failures, path: string, value: Record<string,
     checkInteger(failures, `${path}.row`, value.row);
     if (!Array.isArray(value.cells) || value.cells.length !== CHUNK_CELLS) failures.add(`${path}.cells`, `must list exactly ${CHUNK_CELLS} cells`);
     else value.cells.forEach((cell, index) => checkTileCell(failures, `${path}.cells[${index}]`, cell));
+  } else if (kind === "shape") {
+    checkGeometry(failures, `${path}.geometry`, value.geometry);
+    checkColor(failures, `${path}.fill`, value.fill);
+    checkUnit(failures, `${path}.alpha`, value.alpha);
   } else if (kind === "character") {
     checkId(failures, `${path}.rig`, value.rig);
     checkAnimation(failures, `${path}.animation`, value.animation);
@@ -180,6 +213,8 @@ export function resourceReferences(object: SceneObject): [ResourceId, ResourceKi
       return [[object.texture, "texture", "texture"]];
     case "tile-chunk":
       return [[object.tileset, "tileset", "tileset"]];
+    case "shape":
+      return [];
     case "character": {
       const refs: [ResourceId, ResourceKind, string][] = [[object.rig, "rig", "rig"], [object.animation.clip, "animation", "animation.clip"]];
       if (object.appearance.skin !== null) refs.push([object.appearance.skin, "skin", "appearance.skin"]);

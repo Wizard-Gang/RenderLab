@@ -11,7 +11,7 @@ Every MapLab, RigLab and compiled asset enters RenderLab through one validated b
 3. **Inventory.** No entry may be unlisted and no listed file may be missing. Every listed size must match where the format lists sizes, and every listed SHA-256 must match the bytes.
 4. **Negotiation.** The bundle's required contracts are compared with `support`, the contract keys and versions the consuming adapter renders. Every unmet requirement goes into one `CompatibilityReport`, with the versions supported instead and the action to take. That report rides on a `CompatibilityError` (`contract.unsupported`).
 
-Steps 7–11 belong to the format adapters: schemas, semantic references, dependency closure, scene building and source-ID mapping (MapLab in RLDR-008, RigLab in RLDR-011). They read the parsed manifest from `bundle.manifest.source`.
+Steps 7–11 belong to the format adapters: schemas, semantic references, dependency closure, scene building and source-ID mapping (MapLab in RLDR-008, RigLab in RLDR-011; see [INTEGRATION.md](INTEGRATION.md)). They read the parsed manifest from `bundle.manifest.source`.
 
 ## Bounds
 

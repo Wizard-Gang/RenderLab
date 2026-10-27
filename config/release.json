@@ -1,0 +1,7 @@
+{
+  "id": "r001",
+  "branch": "release/r001",
+  "tasks": [
+    "RLDR-022"
+  ]
+}

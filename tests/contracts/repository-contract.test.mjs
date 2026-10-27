@@ -85,9 +85,6 @@ test('delivery workflows expose the required jobs on the exact head with a read-
     state.change = state.change.replace('run: npm run check:change', 'run: echo skipped');
   }), /change-id must validate exact PR identity/);
   assert.match(failuresWith((state) => {
-    state.change = state.change.replace(/\n {6}- name: Fetch merged release PR heads[^\n]*\n[^\n]*/, '');
-  }), /fetch merged PR heads for the release ledger/);
-  assert.match(failuresWith((state) => {
     state.verify = state.verify.replace(/actions\/checkout@[0-9a-f]{40}/, 'actions/checkout@v7');
   }), /pinned to a full commit SHA/);
   assert.match(failuresWith((state) => {

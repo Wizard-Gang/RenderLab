@@ -3,6 +3,7 @@
   "branch": "release/r001",
   "tasks": [
     "RLDR-022",
-    "RLDR-008"
+    "RLDR-008",
+    "RLDR-023"
   ]
 }

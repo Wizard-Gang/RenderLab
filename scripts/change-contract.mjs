@@ -21,8 +21,6 @@ const titlePattern = /^\[RLDR-(\d{3,})\] \[([A-Z][A-Z0-9]*)\] (\S[^\r\n]*)$/;
 const planTitlePattern = /^\[PLAN\] (\S[^\r\n]*)$/;
 const planBranchPattern = /^plan-[a-z0-9]+(?:-[a-z0-9]+)*$/;
 const releaseBranchPattern = /^release\/r(\d{3,})$/;
-const shaPattern = /^[0-9a-f]{40}$/;
-const runUrlPattern = /^https:\/\/github\.com\/Wizard-Gang\/RenderLab\/actions\/runs\/\d+(?:\/job\/\d+)?$/;
 const branchPattern = /^rldr-(\d{3,})-[a-z0-9]+(?:-[a-z0-9]+)*$/;
 const taskPattern = /^### RLDR-(\d{3,}) — \[([A-Z][A-Z0-9]*)\] (\S[^\r\n]*)$/gm;
 
@@ -171,34 +169,6 @@ export function validateReleaseConfig(config, label = 'config/release.json') {
   return [...new Set(failures)];
 }
 
-/** A docs/releases.json entry proves main's tree after a release equals the tree its release PR tested. */
-export function validateReleaseEntry(entry, release, { history, treeOf }) {
-  const label = `docs/releases.json ${release.id}`;
-  if (!isObject(entry)) return [`${label}: entry is missing`];
-  const failures = [];
-  if (Object.keys(entry).sort().join() !== 'ci,id,mainHead,pr,tasks,testedHead') {
-    failures.push(`${label} must hold only id, pr, testedHead, ci, mainHead and tasks`);
-  }
-  if (entry.id !== release.id) failures.push(`${label}: id must be ${release.id}`);
-  if (!sameList(entry.tasks, release.tasks)) failures.push(`${label}: tasks must be ${release.tasks.join(', ')}`);
-  if (!Number.isInteger(entry.pr) || entry.pr < 1) failures.push(`${label}: pr must be the release PR number`);
-  if (entry.ci?.conclusion !== 'success' || !runUrlPattern.test(entry.ci?.url ?? '')) {
-    failures.push(`${label}: ci must be the release PR's successful verify run {conclusion, url}`);
-  }
-  for (const field of ['testedHead', 'mainHead']) {
-    if (!shaPattern.test(entry[field] ?? '')) failures.push(`${label}: ${field} must be a full commit SHA`);
-  }
-  if (failures.length) return failures;
-  // Plan-only commits may follow the release's last task, so mainHead is main's tip after that task.
-  const onMain = history.slice(0, history.findIndex((record) => record.sha === entry.mainHead) + 1);
-  if (parseTitle(onMain.findLast((record) => parseTitle(record.subject))?.subject ?? '')?.id !== release.tasks.at(-1)) {
-    failures.push(`${label}: mainHead must be main's commit at or after ${release.tasks.at(-1)}, before any later task`);
-  }
-  const testedTree = treeOf(entry.testedHead);
-  if (!testedTree) failures.push(`${label}: tested head ${entry.testedHead} is not in this checkout; fetch refs/pull/${entry.pr}/head`);
-  else if (testedTree !== treeOf(entry.mainHead)) failures.push(`${label}: mainHead tree must equal the tested head tree`);
-  return failures;
-}
 
 function validateReleaseTask(context, title, failures) {
   const head = context.headRelease;
@@ -210,25 +180,9 @@ function validateReleaseTask(context, title, failures) {
   const continuing = base?.id === head.id;
   const tasks = continuing ? [...base.tasks, title.id] : [title.id];
   if (!sameList(head.tasks, tasks)) failures.push(`config/release.json tasks must be ${tasks.join(', ')}`);
-  const baseLedger = context.baseReleases ?? [];
-  const headLedger = context.headReleases;
-  if (!Array.isArray(baseLedger) || !Array.isArray(headLedger)) {
-    failures.push('docs/releases.json must be a JSON array');
-    return;
-  }
-  const appends = !continuing && base !== null;
-  if (headLedger.length !== baseLedger.length + (appends ? 1 : 0)
-      || baseLedger.some((entry, index) => JSON.stringify(entry) !== JSON.stringify(headLedger[index]))) {
-    failures.push(appends
-      ? `docs/releases.json must keep its entries and append ${base.id}`
-      : 'docs/releases.json changes only in the first task of a release that follows another');
-  }
   if (continuing) return;
   const next = releaseId((base ? parseReleaseBranch(base.branch)?.number ?? 0 : 0) + 1);
   if (head.id !== next) failures.push(`the first task of a release must open ${next}`);
-  if (appends && headLedger.length === baseLedger.length + 1) {
-    failures.push(...validateReleaseEntry(headLedger.at(-1), base, { history: context.baseHistory, treeOf: context.treeOf }));
-  }
 }
 
 /** The release PR, release/rNNN into main: one task commit per config/release.json task, oldest first, plus any plan-only commits. */

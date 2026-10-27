@@ -27,7 +27,7 @@ The planned source layout follows the specification's §5:
 | `src/core/` | Renderer-neutral contracts: scene model, camera, timeline, lifecycle, capabilities and backend selection | RLDR-002, RLDR-004, RLDR-005 |
 | `src/assets/` | Bundle reading, integrity, content identity and the loading lifecycle (RLDR-006); SVG rasterization and deterministic texture atlases (RLDR-007), both in [Asset pipeline](ASSET-PIPELINE.md); caching | RLDR-006, RLDR-007 |
 | `src/adapters/` | MapLab and RigLab readers; the replaceable simulation bridge | RLDR-008, RLDR-011, RLDR-015 |
-| `src/render/` | The PixiJS v8 runtime, capability probes and backends (WebGL2 and WebGPU), the scene graph; later terrain, skeletal, particles, effects | RLDR-003 onward |
+| `src/render/` | The PixiJS v8 runtime, capability probes and backends (WebGL2 and WebGPU), the scene graph, sparse terrain chunks (`src/render/terrain/`); later skeletal, particles, effects | RLDR-003 onward |
 | `src/diagnostics/` | Metrics, profiling, visual parity | RLDR-017 to RLDR-020 |
 | `src/demo/` | Reference application UI and scenes (the generated reference scene since RLDR-003) | RLDR-001 (shell), RLDR-003, RLDR-018 |
 
@@ -86,7 +86,7 @@ Parallax composition beyond this hook, and MapLab camera zones, arrive with RLDR
 
 ## Renderers
 
-`src/render/` implements `RendererRuntime` on PixiJS v8. The runtime probes capabilities, picks a backend under the core selection rules (`auto` prefers WebGL2 and may fall back to WebGPU; an explicit backend never downgrades), presents sprites from a mounted scene, updates only what each delta dirties, and refuses content it cannot present yet. [GPU backends](GPU-BACKENDS.md) describes selection, both backends, alpha parity, teardown and loss. The reference application (`src/demo/`) reaches PixiJS only through `src/render/`. It builds the runtime in a React effect and draws on `requestAnimationFrame`; React never holds scene objects.
+`src/render/` implements `RendererRuntime` on PixiJS v8. The runtime probes capabilities, picks a backend under the core selection rules (`auto` prefers WebGL2 and may fall back to WebGPU; an explicit backend never downgrades), presents sprites and culled, batched terrain chunks from a mounted scene, updates only what each delta dirties, and refuses content it cannot present yet. [GPU backends](GPU-BACKENDS.md) describes selection, both backends, alpha parity, teardown and loss. The reference application (`src/demo/`) reaches PixiJS only through `src/render/`. It builds the runtime in a React effect and draws on `requestAnimationFrame`; React never holds scene objects.
 
 ## Dependency rules
 

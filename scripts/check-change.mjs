@@ -55,7 +55,6 @@ function revision(spec) {
   return result.status === 0 ? result.stdout.trim() : null;
 }
 
-const treeOf = (sha) => revision(`${sha}^{tree}`);
 
 function currentHead() {
   return checkedSha(git('rev-parse', 'HEAD'), 'checked-out HEAD');
@@ -100,9 +99,6 @@ function validateCandidate({ baseSha, headSha, branch, title, targetBranch, prBo
     rangeRecords: git('rev-list', '--first-parent', '--reverse', `${baseSha}..${headSha}`).split('\n').filter(Boolean).map(recordAt),
     baseRelease: jsonAt(baseSha, 'config/release.json'),
     headRelease: jsonAt(headSha, 'config/release.json'),
-    baseReleases: jsonAt(baseSha, 'docs/releases.json'),
-    headReleases: jsonAt(headSha, 'docs/releases.json'),
-    treeOf,
   });
   return result;
 }

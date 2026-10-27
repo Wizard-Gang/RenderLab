@@ -4,25 +4,6 @@
 
 The tasks below are the remaining baseline tasks reserved by the governing specification, [2026-10-18-renderlab.md](docs/specifications/2026-10-18-renderlab.md) §20, in its order. Each one is delivered by its own controlled PR. Before an adapter task, re-read the live `Wizard-Gang/MapLab` and `Wizard-Gang/RigLab` main branches (§3): their formats can change between sessions, and fixtures copied from them carry a provenance pin.
 
-### RLDR-009 — [FEAT] Batch and cull sparse terrain chunks
-
-- Dependency: RLDR-008 (MapLab terrain in the scene model).
-- Why: Large worlds must render only what the camera needs, batched by shared textures (§8.2, §15.1–15.2).
-- Scope: `src/render/terrain/` covers:
-  - per-chunk GPU geometry from compiled atlases, preserving tile transforms and variants;
-  - visible-chunk selection with preload margins, and chunk activation and deactivation;
-  - dirty-chunk rebuilds that leave other chunks untouched;
-  - eviction under a chunk budget;
-  - draw-call and chunk diagnostics.
-
-  Benchmark geometry batching against render-texture caching and record the choice.
-- Non-goals: No parallax or foreground composition (RLDR-010), no particles, and no compressed textures.
-- Acceptance: Reference terrain matches MapLab's tile placement and transforms. Only chunks inside the view plus its margin are submitted. Editing one chunk rebuilds only that chunk.
-- Tests: Vitest covers culling and rebuild accounting. Playwright pixel checks cover tile transforms. The batching benchmark is recorded.
-- Validation: The standard set.
-- Documentation: `docs/PERFORMANCE.md` records the terrain batching decision and its evidence.
-- Authorities: Specification §8.2, §12.4, §15.1–15.2.
-
 ### RLDR-010 — [FEAT] Compose MapLab visual layers, parallax and occlusion
 
 - Dependency: RLDR-009 (terrain rendering), RLDR-005 (camera).

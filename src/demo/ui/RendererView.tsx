@@ -16,7 +16,7 @@ type Status =
 
 const describe = (error: unknown) => (error instanceof Error ? error.message : String(error));
 
-const SCENE_LABELS: Record<DemoOptions["scene"], string> = { reference: "reference scene", grid: "pixel grid" };
+const SCENE_LABELS: Record<DemoOptions["scene"], string> = { reference: "reference scene", grid: "pixel grid", terrain: "terrain chunks" };
 
 function statusText(status: Status, scene: DemoOptions["scene"]): string {
   switch (status.kind) {
@@ -140,6 +140,7 @@ export function RendererView() {
           <select value={options.scene} onChange={(event) => choose("scene", event.target.value)}>
             <option value="reference">Reference</option>
             <option value="grid">Pixel grid</option>
+            <option value="terrain">Terrain chunks</option>
           </select>
         </label>
         <label>

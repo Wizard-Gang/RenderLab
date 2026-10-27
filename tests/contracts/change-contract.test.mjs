@@ -6,7 +6,7 @@ import { join, resolve } from 'node:path';
 import { after, test } from 'node:test';
 import {
   CONTROLLED_TYPES, LAST_DIRECT_TASK,
-  parseBranch, parseTitle, validateBody, validateHistory, validatePlan, validatePullRequest,
+  parseBranch, parsePlanTitle, parseTitle, validateBody, validateHistory, validatePlan, validatePullRequest,
 } from '../../scripts/change-contract.mjs';
 
 const scriptRoot = resolve(import.meta.dirname, '../..');
@@ -44,7 +44,7 @@ const emptyPlan = `# Implementation plan
 
 The queue is empty. Select no implementation task.
 
-The next instruction must fill this queue through a controlled, plan-only change before implementation begins. Fetch current \`main\`, inspect open pull requests and reservations, and use the repository's next valid unassigned controlled ID. Keep this file tracked; do not delete it when the queue is empty.
+Fill this queue with a \`[PLAN]\` change before implementation begins. A new task takes an ID above every ID ever used in history or the queue. Keep this file tracked; do not delete it when the queue is empty.
 `;
 
 const record = (number, parent = null, type = 'TEST') => ({
@@ -83,6 +83,9 @@ test('RL title and branch use one canonical number and primary type', () => {
   assert.equal(parseBranch('rldr-001-establish-renderlab')?.id, 'RLDR-001');
   assert.equal(parseBranch('rldr-0001-padded'), null);
   assert.equal(parseBranch('feature/rldr-001-establish'), null);
+  assert.deepEqual(parsePlanTitle('[PLAN] Queue the adapter tasks'), { summary: 'Queue the adapter tasks' });
+  assert.equal(parsePlanTitle('[PLAN] [FEAT] Queue the adapter tasks'), null);
+  assert.equal(parsePlanTitle('[PLAN]Queue'), null);
   assert.ok(CONTROLLED_TYPES.includes('REVERT'));
 });
 
@@ -95,30 +98,39 @@ test('controlled body requires ordered, unique, nonempty fields and classified r
   assert.match(validateBody(body().replace('Reason:', 'Temporary:').replace('Impact:', 'Reason:').replace('Temporary:', 'Impact:'), 'RLDR-001').join(' '), /out of order/);
 });
 
-test('first-parent main history begins at controlled RLDR-001 and stays sequential', () => {
+test('first-parent main history begins at RLDR-001 and never reuses an ID', () => {
   const first = record(1);
   const second = record(2, first.sha);
   assert.deepEqual(validateHistory([first, second]).failures, []);
   assert.equal(validateHistory([first, second]).lastId, 2);
+  const gap = record(9, first.sha);
+  const planned = { ...record(0, gap.sha), sha: 'sha-plan', subject: '[PLAN] Reorder the queue' };
+  const back = record(4, planned.sha);
+  assert.deepEqual(validateHistory([first, gap, planned, back]).failures, [], 'IDs need not be contiguous or ascending');
+  assert.equal(validateHistory([first, gap, planned, back]).lastId, 9);
 
   assert.match(validateHistory([{ ...first, subject: 'Bootstrap renderlab repository' }]).failures.join(' '), /invalid controlled title/);
-  assert.match(validateHistory([first, { ...second, subject: first.subject }]).failures.join(' '), /expected RLDR-002/);
+  assert.match(validateHistory([record(2)]).failures.join(' '), /must begin at RLDR-001/);
+  assert.match(validateHistory([first, { ...second, subject: first.subject }]).failures.join(' '), /RLDR-001 was already used/);
+  assert.match(validateHistory([first, { ...planned, parents: [first.sha], body: '' }]).failures.join(' '), /\[PLAN\]: expected exactly one Change:/);
   assert.match(validateHistory([first, { ...second, parents: [first.sha, 'other'] }]).failures.join(' '), /without merge commits/);
   assert.match(validateHistory([first, { ...second, body: '' }]).failures.join(' '), /exactly one Change:/);
 });
 
-test('active plan has contiguous future tasks and no completed ledger', () => {
-  assert.match(validatePlan(null, 2).failures.join(' '), /permanent implementation_plan.md is missing/);
-  assert.deepEqual(validatePlan(emptyPlan, 2).failures, []);
-  assert.deepEqual(validatePlan(plan(2, 3), 2).failures, []);
-  assert.deepEqual(validatePlan(plan(2).replaceAll(/^- /gm, ''), 2).failures, []);
-  assert.match(validatePlan(plan(3), 2).failures.join(' '), /expected RLDR-002/);
-  assert.match(validatePlan(plan(2, 4), 2).failures.join(' '), /expected RLDR-003/);
-  assert.match(validatePlan('# Plan\n\n## Completed\n\n' + task(2), 2).failures.join(' '), /historical sections/);
-  assert.match(validatePlan(plan(2).replace('- Validation: node --test tests/change-contract.test.mjs.', ''), 2).failures.join(' '), /missing nonempty Validation/);
+test('active plan holds unique undelivered tasks in any order and no completed ledger', () => {
+  const delivered = new Set([1]);
+  assert.match(validatePlan(null, delivered).failures.join(' '), /permanent implementation_plan.md is missing/);
+  assert.deepEqual(validatePlan(emptyPlan, delivered).failures, []);
+  assert.deepEqual(validatePlan(plan(2, 3), delivered).failures, []);
+  assert.deepEqual(validatePlan(plan(5, 2, 9), delivered).failures, [], 'gaps and reordering are allowed');
+  assert.deepEqual(validatePlan(plan(2).replaceAll(/^- /gm, ''), delivered).failures, []);
+  assert.match(validatePlan(plan(2, 1), delivered).failures.join(' '), /RLDR-001: was already delivered/);
+  assert.match(validatePlan(plan(2, 3, 2), delivered).failures.join(' '), /RLDR-002: queued more than once/);
+  assert.match(validatePlan('# Plan\n\n## Completed\n\n' + task(2), delivered).failures.join(' '), /historical sections/);
+  assert.match(validatePlan(plan(2).replace('- Validation: node --test tests/change-contract.test.mjs.', ''), delivered).failures.join(' '), /missing nonempty Validation/);
 });
 
-test('PR binds exact head, branch, next ID, single commit, and first task retirement', () => {
+test('task PR binds exact head, branch, a queued or new ID, single commit, and its own retirement', () => {
   assert.deepEqual(validatePullRequest(candidate()).failures, []);
   assert.match(validatePullRequest(candidate({ title: '[RLDR-002] [BUILD] Different title' })).failures.join(' '), /exactly equal/);
   assert.match(validatePullRequest(candidate({ prBody: `${body()}\nChanged` })).failures.join(' '), /PR body must exactly equal/);
@@ -127,16 +139,47 @@ test('PR binds exact head, branch, next ID, single commit, and first task retire
   assert.match(validatePullRequest(candidate({ targetBranch: 'develop' })).failures.join(' '), /must target main/);
   assert.match(validatePullRequest(candidate({ commitRangeCount: 2 })).failures.join(' '), /one controlled commit/);
   assert.match(validatePullRequest(candidate({ mergeBaseSha: 'stale-base' })).failures.join(' '), /direct child/);
-  assert.match(validatePullRequest(candidate({ basePlan: plan(3, 4) })).failures.join(' '), /base plan: RLDR-003: expected RLDR-002/);
-  assert.match(validatePullRequest(candidate({ headPlan: plan(2, 3) })).failures.join(' '), /head plan: RLDR-002: expected RLDR-003/);
-  assert.match(validatePullRequest(candidate({ headPlan: null })).failures.join(' '), /preserve remaining future tasks/);
-  assert.match(validatePullRequest(candidate({ basePlan: plan(2), headPlan: plan(3) })).failures.join(' '), /final task must leave the queue empty/);
+  assert.match(validatePullRequest(candidate({ headPlan: plan(2, 3) })).failures.join(' '), /RLDR-002: a delivering task removes its own task/);
+  assert.match(validatePullRequest(candidate({ headPlan: null })).failures.join(' '), /head plan: permanent implementation_plan.md is missing/);
+  assert.match(validatePullRequest(candidate({ title: '[RLDR-002] [FEAT] Prove process contract', head: { ...candidate().head, subject: '[RLDR-002] [FEAT] Prove process contract' } })).failures.join(' '), /queued type TEST must match PR type/);
+  // A task PR may edit, reorder, remove or add other queued tasks, from any queue state.
+  assert.deepEqual(validatePullRequest(candidate({ basePlan: plan(3, 2), headPlan: plan(3) })).failures, [], 'need not be first');
+  assert.deepEqual(validatePullRequest(candidate({ basePlan: plan(2, 3, 4), headPlan: plan(4, 5) })).failures, []);
   assert.deepEqual(validatePullRequest(candidate({ basePlan: plan(2), headPlan: emptyPlan })).failures, []);
-  assert.deepEqual(validatePullRequest(candidate({ basePlan: emptyPlan, headPlan: plan(3) })).failures, []);
-  assert.match(validatePullRequest(candidate({ basePlan: emptyPlan, headPlan: emptyPlan })).failures.join(' '), /must publish a future-task plan/);
+  assert.deepEqual(validatePullRequest(candidate({ basePlan: emptyPlan, headPlan: emptyPlan })).failures, [], 'a new ID needs no queue entry');
+  assert.match(validatePullRequest(candidate({ basePlan: plan(3, 4), headPlan: plan(3, 4) })).failures.join(' '), /RLDR-002 is neither queued nor a new ID above RLDR-004/);
+  assert.match(validatePullRequest(candidate({ headPlan: plan(3, 2) })).failures.join(' '), /delivering task removes its own task/);
+  assert.match(validatePullRequest(candidate({ headPlan: plan(3, 1) })).failures.join(' '), /head plan: RLDR-001: was already delivered/);
+  assert.match(validatePullRequest(candidate({ basePlan: plan(2, 5), headPlan: plan(4) })).failures.join(' '), /RLDR-004: a new task takes an ID above RLDR-005/);
+  assert.match(validatePullRequest(candidate({ basePlan: plan(2), headPlan: plan(4), highestPlannedId: 6 })).failures.join(' '), /RLDR-004: a new task takes an ID above RLDR-006/, 'a removed queued ID stays retired');
+  assert.deepEqual(validatePullRequest(candidate({ basePlan: plan(2), headPlan: plan(7), highestPlannedId: 6 })).failures, []);
 });
 
 const r001 = (...tasks) => ({ id: 'r001', branch: 'release/r001', tasks });
+const planPr = (overrides = {}) => {
+  const initial = record(1);
+  const head = { ...record(0, initial.sha), sha: 'sha-plan', subject: '[PLAN] Reorder the queue' };
+  return validatePullRequest(candidate({
+    head, title: head.subject, prBody: head.body, branch: 'plan-reorder-the-queue', targetBranch: 'release/r001',
+    basePlan: plan(2, 3), headPlan: plan(3, 2), changedFiles: ['implementation_plan.md'], ...overrides,
+  })).failures.join(' ');
+};
+
+test('a plan-only PR takes no ID and may add, edit, reorder or remove queued tasks from any queue state', () => {
+  assert.equal(planPr(), '');
+  assert.equal(planPr({ basePlan: emptyPlan, headPlan: plan(2, 3) }), '');
+  assert.equal(planPr({ headPlan: emptyPlan }), '');
+  assert.equal(planPr({ headPlan: plan(3, 4, 2) }), '');
+  assert.equal(planPr({ headPlan: plan(2, 3).replace('Add one process test.', 'Add two process tests.') }), '');
+  assert.match(planPr({ changedFiles: ['implementation_plan.md', 'src/index.ts'] }), /changes only implementation_plan.md/);
+  assert.match(planPr({ changedFiles: [] }), /changes only implementation_plan.md/);
+  assert.match(planPr({ targetBranch: 'main' }), /plan-only PR must target the open release\/rNNN branch/);
+  assert.match(planPr({ branch: 'rldr-002-reorder' }), /plan-only branch must be plan-imperative-summary/);
+  assert.match(planPr({ headPlan: plan(3, 1) }), /RLDR-001: was already delivered/);
+  assert.equal(planPr({ headPlan: plan(3), highestPlannedId: 3 }), '', 'removing a task retires it');
+  assert.match(planPr({ headPlan: plan(2, 3, 4), highestPlannedId: 5 }), /RLDR-004: a new task takes an ID above RLDR-005/);
+  assert.match(planPr({ title: '[PLAN] Reorder', prBody: body() }), /exactly equal the head commit subject/);
+});
 const intoRelease = (overrides = {}) => candidate({
   targetBranch: 'release/r001', baseRelease: null, headRelease: r001('RLDR-002'),
   baseReleases: [], headReleases: [], treeOf: () => null, ...overrides,
@@ -180,7 +223,10 @@ test('a release PR carries exactly one commit per listed task under a derived ti
   assert.match(release({ rangeRecords: [first], commitRangeCount: 1 }), /one per listed task \(RLDR-002, RLDR-003\); found RLDR-002/);
   assert.match(release({ mergeBaseSha: 'stale-base' }), /current with main/);
   assert.match(release({ commitRangeCount: 3 }), /one first-parent chain/);
-  assert.match(release({ headPlan: plan(3) }), /head plan: RLDR-003: expected RLDR-004/);
+  assert.match(release({ headPlan: plan(3) }), /head plan: RLDR-003: was already delivered/);
+  const planned = { ...record(0, first.sha), sha: 'sha-plan', subject: '[PLAN] Queue later work' };
+  const after = { ...second, parents: [planned.sha] };
+  assert.equal(release({ rangeRecords: [first, planned, after], commitRangeCount: 3, headPlan: plan(5) }), '', 'plan-only commits ride along');
   assert.match(release({ branch: 'release/r002' }), /head must be the config\/release.json branch release\/r001/);
   assert.match(release({ rangeRecords: [first, { ...second, body: '' }] }), /exactly one Change:/);
 });
@@ -203,7 +249,7 @@ test('the first task of the next release records the last one with tree-equality
   assert.match(next([{ ...entry, ci: { ...entry.ci, conclusion: 'failure' } }]), /successful verify run/);
   assert.match(next([entry], { [mainSha]: 'tree', [tested]: 'other' }), /mainHead tree must equal the tested head tree/);
   assert.match(next([entry], { [mainSha]: 'tree' }), /fetch refs\/pull\/7\/head/);
-  assert.match(next([{ ...entry, mainHead: '2'.repeat(40) }]), /mainHead must be the RLDR-001 commit/);
+  assert.match(next([{ ...entry, mainHead: '2'.repeat(40) }]), /mainHead must be main's commit at or after RLDR-001/);
   assert.match(next([{ ...entry, tasks: [] }]), /tasks must be RLDR-001/);
 });
 
@@ -279,7 +325,7 @@ test('CLI reads committed Git state and GitHub PR metadata at the exact head', (
   assert.equal(command(root, process.execPath, ['scripts/check-change.mjs']).status, 0);
 
   git(root, 'switch', '-q', '--detach', 'HEAD');
-  assert.match(command(root, process.execPath, ['scripts/check-change.mjs']).stderr, /detached HEAD: check out main, a release\/rNNN branch or an rldr-### task branch/);
+  assert.match(command(root, process.execPath, ['scripts/check-change.mjs']).stderr, /detached HEAD: check out main, a release\/rNNN branch, an rldr-### task branch or a plan- branch/);
 });
 test('CLI checks a task PR into the release branch and a local release branch as its release PR', () => {
   const root = mkdtempSync(join(tmpdir(), 'renderlab-release-'));
@@ -325,6 +371,27 @@ test('CLI checks a task PR into the release branch and a local release branch as
 
   git(root, 'switch', '-q', 'release/r001');
   git(root, 'merge', '-q', '--ff-only', 'rldr-002-prove-process-contract');
+
+  const planChange = (branch, numbers) => {
+    git(root, 'switch', '-q', '-c', branch, 'release/r001');
+    writeFileSync(join(root, 'implementation_plan.md'), plan(...numbers));
+    commit(root, `[PLAN] ${branch}`, body());
+    return command(root, process.execPath, ['scripts/check-change.mjs']);
+  };
+  const accept = (branch) => {
+    git(root, 'switch', '-q', 'release/r001');
+    git(root, 'merge', '-q', '--ff-only', branch);
+  };
+  const queued = planChange('plan-queue-later-work', [5, 3]);
+  assert.equal(queued.status, 0, queued.stderr);
+  assert.match(queued.stdout, /Controlled plan-only candidate/);
+  accept('plan-queue-later-work');
+  const dropped = planChange('plan-drop-later-work', [3]);
+  assert.equal(dropped.status, 0, dropped.stderr);
+  accept('plan-drop-later-work');
+  assert.match(planChange('plan-reuse-retired-work', [4, 3]).stderr, /RLDR-004: a new task takes an ID above RLDR-005/,
+    'RLDR-005 was once queued, so its removal retires every ID up to it');
+  git(root, 'switch', '-q', 'release/r001');
   const release = command(root, process.execPath, ['scripts/check-change.mjs']);
   assert.equal(release.status, 0, release.stderr);
   assert.match(release.stdout, /Controlled r001 candidate/);

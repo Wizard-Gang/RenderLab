@@ -31,6 +31,13 @@ function planAt(ref) {
   return git('show', `${ref}:implementation_plan.md`);
 }
 
+// Every queued ID ever added on the base's first-parent history, so a removed queued ID stays retired.
+function highestPlannedId(ref) {
+  checkedSha(ref, 'plan history endpoint');
+  const added = git('log', '--first-parent', '--format=', '-p', '-U0', ref, '--', 'implementation_plan.md');
+  return Math.max(0, ...[...added.matchAll(/^\+### RLDR-(\d{3,}) /gm)].map((match) => Number(match[1])));
+}
+
 function jsonAt(ref, path) {
   checkedSha(ref, `${path} endpoint`);
   if (!git('ls-tree', '--name-only', ref, '--', path)) return null;
@@ -61,12 +68,12 @@ function localBranch() {
   });
   if (branch.status === 0) return branch.stdout.trim();
   if (branch.status !== 1) throw new Error(`unable to inspect local branch: ${branch.stderr.trim()}`);
-  throw new Error('detached HEAD: check out main, a release/rNNN branch or an rldr-### task branch, or supply CHANGE_* candidate variables');
+  throw new Error('detached HEAD: check out main, a release/rNNN branch, an rldr-### task branch or a plan- branch, or supply CHANGE_* candidate variables');
 }
 
 function validateAccepted(ref) {
   const history = validateHistory(historyAt(ref));
-  const plan = validatePlan(planAt(ref), history.lastId + 1);
+  const plan = validatePlan(planAt(ref), history.ids);
   return { failures: [...history.failures, ...plan.failures], lastId: history.lastId };
 }
 
@@ -86,6 +93,8 @@ function validateCandidate({ baseSha, headSha, branch, title, targetBranch, prBo
     baseHistory: historyAt(baseSha),
     basePlan: planAt(baseSha),
     headPlan: planAt(headSha),
+    highestPlannedId: highestPlannedId(baseSha),
+    changedFiles: git('diff', '--name-only', baseSha, headSha).split('\n').filter(Boolean),
     mergeBaseSha: git('merge-base', baseSha, headSha),
     commitRangeCount: Number(git('rev-list', '--count', `${baseSha}..${headSha}`)),
     rangeRecords: git('rev-list', '--first-parent', '--reverse', `${baseSha}..${headSha}`).split('\n').filter(Boolean).map(recordAt),
@@ -142,13 +151,16 @@ function contextFromEvent() {
     const title = `[RELEASE] ${releaseBranch.id}: ${tasks[0]}${tasks.length > 1 ? `..${tasks.at(-1)}` : ''}`;
     return { kind: 'candidate', baseSha: mainSha, headSha, branch, title, targetBranch: 'main', prBody: '' };
   }
-  // A task branch targets the release branch its config/release.json names, when that branch exists locally.
-  const releaseSha = parseReleaseBranch(release?.branch)
-    ? revision(`refs/heads/${release.branch}^{commit}`) ?? revision(`refs/remotes/origin/${release.branch}^{commit}`) : null;
+  // A task or plan branch targets the release branch its config/release.json names, else the newest one present.
+  const releaseRef = (name) => revision(`refs/heads/${name}^{commit}`) ?? revision(`refs/remotes/origin/${name}^{commit}`);
+  const newest = git('for-each-ref', '--format=%(refname:lstrip=-2)', 'refs/heads/release/', 'refs/remotes/origin/release/')
+    .split('\n').filter((name) => parseReleaseBranch(name)).sort().at(-1);
+  const target = parseReleaseBranch(release?.branch) && releaseRef(release.branch) ? release.branch : newest;
+  const releaseSha = target ? releaseRef(target) : null;
   const head = recordAt(headSha);
   return {
     kind: 'candidate', baseSha: releaseSha ?? mainSha, headSha, branch, title: head.subject,
-    targetBranch: releaseSha ? release.branch : 'main', prBody: head.body,
+    targetBranch: releaseSha ? target : 'main', prBody: head.body,
   };
 }
 

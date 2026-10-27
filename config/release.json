@@ -1,9 +1,7 @@
 {
-  "id": "r001",
-  "branch": "release/r001",
+  "id": "r002",
+  "branch": "release/r002",
   "tasks": [
-    "RLDR-022",
-    "RLDR-008",
-    "RLDR-023"
+    "RLDR-009"
   ]
 }

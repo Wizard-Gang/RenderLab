@@ -14,10 +14,12 @@ export const REQUIRED_PLAN_FIELDS = Object.freeze([
 ]);
 
 // Tasks through RLDR-007 merged straight into main. Later tasks squash into the open release/rNNN branch, and
-// main changes only by a release PR that rebase-merges one commit per task.
+// main changes only by a release PR that rebase-merges one commit per task or plan change.
 export const LAST_DIRECT_TASK = 7;
 
 const titlePattern = /^\[RLDR-(\d{3,})\] \[([A-Z][A-Z0-9]*)\] (\S[^\r\n]*)$/;
+const planTitlePattern = /^\[PLAN\] (\S[^\r\n]*)$/;
+const planBranchPattern = /^plan-[a-z0-9]+(?:-[a-z0-9]+)*$/;
 const releaseBranchPattern = /^release\/r(\d{3,})$/;
 const shaPattern = /^[0-9a-f]{40}$/;
 const runUrlPattern = /^https:\/\/github\.com\/Wizard-Gang\/RenderLab\/actions\/runs\/\d+(?:\/job\/\d+)?$/;
@@ -36,6 +38,12 @@ export function parseTitle(subject) {
   if (!match || match[1] !== String(Number(match[1])).padStart(3, '0')
     || !CONTROLLED_TYPES.includes(match[2]) || /\[[A-Z][A-Z0-9]*\]/.test(match[3])) return null;
   return { id: id(Number(match[1])), number: Number(match[1]), type: match[2], summary: match[3] };
+}
+
+/** A plan-only change edits only implementation_plan.md and takes no task ID: `[PLAN] Imperative summary`. */
+export function parsePlanTitle(subject) {
+  const match = planTitlePattern.exec(subject ?? '');
+  return match && !/\[[A-Z][A-Z0-9]*\]/.test(match[1]) ? { summary: match[1] } : null;
 }
 
 export function parseBranch(branch) {
@@ -73,8 +81,10 @@ export function validateBody(body, label = 'commit') {
   return failures;
 }
 
+// IDs are unique and never recycled, but the queue can be reordered, so history need not be contiguous or ascending.
 export function validateHistory(records) {
   const failures = [];
+  const ids = new Set();
   let lastId = 0;
   if (records.length === 0) failures.push('controlled history is empty');
   records.forEach((record, index) => {
@@ -84,19 +94,25 @@ export function validateHistory(records) {
       failures.push(`${label}: controlled main must be a single first-parent chain without merge commits`);
     }
     const title = parseTitle(record.subject);
+    if (!title && index > 0 && parsePlanTitle(record.subject)) {
+      failures.push(...validateBody(record.body, `${label} [PLAN]`));
+      return;
+    }
     if (!title) {
       failures.push(`${label}: invalid controlled title`);
       return;
     }
-    if (title.number !== lastId + 1) failures.push(`${label}: expected ${id(lastId + 1)}, found ${title.id}`);
-    // Advance on a bad number so later failures describe the actual sequence.
-    lastId = title.number;
+    if (index === 0 && title.number !== 1) failures.push(`${label}: history must begin at RLDR-001, found ${title.id}`);
+    if (ids.has(title.number)) failures.push(`${label}: ${title.id} was already used; IDs are never recycled`);
+    ids.add(title.number);
+    lastId = Math.max(lastId, title.number);
     failures.push(...validateBody(record.body, title.id));
   });
-  return { failures, lastId };
+  return { failures, ids, lastId };
 }
 
-export function validatePlan(markdown, nextId) {
+/** Queued tasks may be added, edited, reordered or removed by any change; their IDs stay unique and undelivered. */
+export function validatePlan(markdown, delivered = new Set()) {
   if (markdown === null || markdown === undefined) {
     return { failures: ['permanent implementation_plan.md is missing'], tasks: [] };
   }
@@ -117,8 +133,8 @@ export function validatePlan(markdown, nextId) {
     failures.push('active implementation_plan.md cannot retain completed or historical sections');
   }
   tasks.forEach((task, index) => {
-    const expected = nextId + index;
-    if (task.number !== expected) failures.push(`${task.id}: expected ${id(expected)} as task ${index + 1}`);
+    if (tasks.findIndex((other) => other.number === task.number) !== index) failures.push(`${task.id}: queued more than once`);
+    if (delivered.has(task.number)) failures.push(`${task.id}: was already delivered; IDs are never recycled`);
     if (task.id !== id(task.number)) failures.push(`${task.id}: use canonical numeric padding ${id(task.number)}`);
     if (!CONTROLLED_TYPES.includes(task.type)) failures.push(`${task.id}: invalid primary type ${task.type}`);
     const section = markdown.slice(task.end, tasks[index + 1]?.start ?? markdown.length);
@@ -148,8 +164,8 @@ export function validateReleaseConfig(config, label = 'config/release.json') {
   if (!tasks.length) failures.push(`${label}: tasks must list the release's RLDR IDs`);
   tasks.forEach((task, index) => {
     const number = Number(String(task).slice(5));
-    if (task !== id(number) || (index > 0 && number !== Number(tasks[index - 1].slice(5)) + 1)) {
-      failures.push(`${label}: tasks must be consecutive canonical RLDR IDs`);
+    if (task !== id(number) || tasks.indexOf(task) !== index) {
+      failures.push(`${label}: tasks must be unique canonical RLDR IDs`);
     }
   });
   return [...new Set(failures)];
@@ -173,9 +189,10 @@ export function validateReleaseEntry(entry, release, { history, treeOf }) {
     if (!shaPattern.test(entry[field] ?? '')) failures.push(`${label}: ${field} must be a full commit SHA`);
   }
   if (failures.length) return failures;
-  const main = history.find((record) => record.sha === entry.mainHead);
-  if (parseTitle(main?.subject ?? '')?.id !== release.tasks.at(-1)) {
-    failures.push(`${label}: mainHead must be the ${release.tasks.at(-1)} commit on main`);
+  // Plan-only commits may follow the release's last task, so mainHead is main's tip after that task.
+  const onMain = history.slice(0, history.findIndex((record) => record.sha === entry.mainHead) + 1);
+  if (parseTitle(onMain.findLast((record) => parseTitle(record.subject))?.subject ?? '')?.id !== release.tasks.at(-1)) {
+    failures.push(`${label}: mainHead must be main's commit at or after ${release.tasks.at(-1)}, before any later task`);
   }
   const testedTree = treeOf(entry.testedHead);
   if (!testedTree) failures.push(`${label}: tested head ${entry.testedHead} is not in this checkout; fetch refs/pull/${entry.pr}/head`);
@@ -214,7 +231,7 @@ function validateReleaseTask(context, title, failures) {
   }
 }
 
-/** The release PR, release/rNNN into main: exactly one task commit per config/release.json task, oldest first. */
+/** The release PR, release/rNNN into main: one task commit per config/release.json task, oldest first, plus any plan-only commits. */
 export function validateReleasePullRequest(context) {
   const failures = [];
   const release = parseReleaseBranch(context.branch);
@@ -234,12 +251,12 @@ export function validateReleasePullRequest(context) {
     failures.push('release branch must be current with main');
   }
   if (context.commitRangeCount !== context.rangeRecords.length) failures.push('release range must be one first-parent chain');
-  const ids = context.rangeRecords.map((record) => parseTitle(record.subject)?.id ?? record.sha);
+  const ids = context.rangeRecords.flatMap((record) => parseTitle(record.subject)?.id ?? (parsePlanTitle(record.subject) ? [] : record.sha));
   if (!sameList(ids, tasks)) {
     failures.push(`release commits must be one per listed task (${tasks.join(', ')}); found ${ids.join(', ') || 'none'}`);
   }
-  failures.push(...validatePlan(context.basePlan, base.lastId + 1).failures.map((failure) => `base plan: ${failure}`));
-  failures.push(...validatePlan(context.headPlan, history.lastId + 1).failures.map((failure) => `head plan: ${failure}`));
+  failures.push(...validatePlan(context.basePlan, base.ids).failures.map((failure) => `base plan: ${failure}`));
+  failures.push(...validatePlan(context.headPlan, history.ids).failures.map((failure) => `head plan: ${failure}`));
   return { failures, nextId: release.id };
 }
 
@@ -250,18 +267,19 @@ export function validatePullRequest(context) {
   if (context.targetBranch !== 'main' && !release) failures.push('controlled PR must target main or a release/rNNN branch');
   const baseHistory = validateHistory(context.baseHistory);
   failures.push(...baseHistory.failures);
-  const expected = baseHistory.lastId + 1;
+  const planOnly = parsePlanTitle(context.title);
   const title = parseTitle(context.title);
   const branch = parseBranch(context.branch);
-  if (!title) failures.push('PR title must be [RLDR-###] [TYPE] Imperative summary');
-  if (!branch) failures.push('branch must be rldr-###-imperative-summary');
+  if (!title && !planOnly) failures.push('PR title must be [RLDR-###] [TYPE] Imperative summary or [PLAN] Imperative summary');
+  if (planOnly && !planBranchPattern.test(context.branch ?? '')) failures.push('plan-only branch must be plan-imperative-summary');
+  if (!planOnly && !branch) failures.push('branch must be rldr-###-imperative-summary');
   if (context.title !== context.head.subject) failures.push('PR title must exactly equal the head commit subject');
   if (typeof context.prBody !== 'string') failures.push('PR body must contain the controlled commit body');
   else if (normalizeBody(context.prBody) !== normalizeBody(context.head.body)) {
     failures.push('PR body must exactly equal the head commit body (ignoring line endings and trailing newlines)');
   }
   if (title && branch && title.id !== branch.id) failures.push(`branch ${branch.id} does not match PR ${title.id}`);
-  if (title && title.number !== expected) failures.push(`PR must use next sequential ${id(expected)}`);
+  if (planOnly && !release) failures.push('a plan-only PR must target the open release/rNNN branch; main changes only by release PR');
   if (title && !release && title.number > LAST_DIRECT_TASK) {
     failures.push(`${title.id} must target the open release/rNNN branch; main changes only by release PR`);
   }
@@ -271,26 +289,25 @@ export function validatePullRequest(context) {
   if (context.commitRangeCount !== 1) failures.push(`PR range must contain one controlled commit; found ${context.commitRangeCount}`);
   failures.push(...validateBody(context.head.body, title?.id ?? 'head commit'));
 
-  const basePlan = validatePlan(context.basePlan, expected);
+  // Any change may add, edit, reorder or remove queued tasks. A new task takes an ID above every ID ever used in
+  // history or any earlier plan (highestPlannedId), so a removed queued ID stays retired.
+  const basePlan = validatePlan(context.basePlan, baseHistory.ids);
   failures.push(...basePlan.failures.map((failure) => `base plan: ${failure}`));
-  const headPlan = validatePlan(context.headPlan, expected + 1);
+  const headPlan = validatePlan(context.headPlan, baseHistory.ids);
   failures.push(...headPlan.failures.map((failure) => `head plan: ${failure}`));
-  if (basePlan.tasks.length === 0) {
-    if (headPlan.tasks.length === 0) {
-      failures.push('a change from an empty queue must publish a future-task plan');
-    }
-  } else {
-    const first = basePlan.tasks[0];
-    if (first && title && first.type !== title.type) failures.push(`${first.id}: first task type must match PR type`);
-    const remaining = basePlan.tasks.slice(1);
-    if (remaining.length === 0 && headPlan.tasks.length !== 0) {
-      failures.push('delivering the final task must leave the queue empty');
-    }
-    if (remaining.length > 0 && headPlan.tasks.length === 0) failures.push('delivering a task must preserve remaining future tasks');
-    remaining.forEach((task, index) => {
-      if (headPlan.tasks[index]?.id !== task.id) failures.push(`${task.id}: future task was removed or reordered`);
-    });
+  const highest = Math.max(baseHistory.lastId, context.highestPlannedId ?? 0, ...basePlan.tasks.map((task) => task.number));
+  const queued = new Map(basePlan.tasks.map((task) => [task.number, task]));
+  for (const task of headPlan.tasks) {
+    if (!queued.has(task.number) && task.number <= highest) failures.push(`head plan: ${task.id}: a new task takes an ID above ${id(highest)}`);
   }
-  if (release) validateReleaseTask(context, title, failures);
-  return { failures, nextId: id(expected) };
+  if (planOnly) {
+    if (!sameList(context.changedFiles, ['implementation_plan.md'])) failures.push('a plan-only PR changes only implementation_plan.md');
+  } else if (title) {
+    const own = queued.get(title.number);
+    if (own && own.type !== title.type) failures.push(`${title.id}: queued type ${own.type} must match PR type`);
+    if (!own && title.number <= highest) failures.push(`${title.id} is neither queued nor a new ID above ${id(highest)}`);
+    if (headPlan.tasks.some((task) => task.number === title.number)) failures.push(`${title.id}: a delivering task removes its own task`);
+  }
+  if (release && title) validateReleaseTask(context, title, failures);
+  return { failures, nextId: title?.id ?? 'plan-only' };
 }

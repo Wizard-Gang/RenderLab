@@ -12,7 +12,7 @@ The provider controls a future release depends on are already in force, so a rel
 
 A controlled task that introduces releases follows the shared Wizard-Gang baseline release shape used by RigLab and Hexframe, adapted in that task:
 
-1. Queue it through a plan-only change; it never rides along with feature work.
+1. Queue it through a `[PLAN]` change or with its own task ID; it never rides along with feature work.
 2. Add the release workflows (a cutter that, on each push to `main`, proves main's tree equals the merged release PR's tested head and then tags that exact commit, and a release job that reproduces, attests and publishes), their contract rules and their tests in one change.
 3. Decide in that task what a release publishes (for example a reproduced source archive with provenance) and whether a hosted demo is in scope; a deployment target needs its own runbook and controls.
 4. Verify live settings with `npm run verify:github-settings` before merging the version change that triggers the first release.

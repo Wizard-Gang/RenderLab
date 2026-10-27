@@ -1,0 +1,959 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:maplab:schema:maplab.movement:1",
+  "title": "maplab.movement v1: complete R1 movement profile",
+  "description": "Closed movement schema including every ability family. Structural validity does not imply supported or implemented controller capabilities. Local references only.",
+  "type": "object",
+  "properties": {
+    "format": {
+      "const": "maplab.movement"
+    },
+    "version": {
+      "const": 1
+    },
+    "id": {
+      "$ref": "#/$defs/id"
+    },
+    "name": {
+      "$ref": "#/$defs/text"
+    },
+    "controller": {
+      "$ref": "#/$defs/contract-ref"
+    },
+    "units": {
+      "type": "object",
+      "properties": {
+        "subunitsPerWU": {
+          "const": 256
+        },
+        "ticksPerSecond": {
+          "const": 60
+        }
+      },
+      "required": [
+        "subunitsPerWU",
+        "ticksPerSecond"
+      ],
+      "additionalProperties": false
+    },
+    "collider": {
+      "$ref": "#/$defs/collider"
+    },
+    "support": {
+      "enum": [
+        "fullFootprint",
+        "centerFoot"
+      ]
+    },
+    "grabHeight": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 131072,
+      "multipleOf": 0.0625
+    },
+    "category": {
+      "$ref": "#/$defs/key"
+    },
+    "mask": {
+      "type": "array",
+      "minItems": 0,
+      "maxItems": 256,
+      "items": {
+        "$ref": "#/$defs/key"
+      },
+      "uniqueItems": true
+    },
+    "ground": {
+      "type": "object",
+      "properties": {
+        "walkSpeed": {
+          "$ref": "#/$defs/nonnegative-su"
+        },
+        "runSpeed": {
+          "$ref": "#/$defs/nonnegative-su"
+        },
+        "acceleration": {
+          "$ref": "#/$defs/nonnegative-su"
+        },
+        "braking": {
+          "$ref": "#/$defs/nonnegative-su"
+        },
+        "maxSlope": {
+          "$ref": "#/$defs/slope"
+        },
+        "uphill": {
+          "$ref": "#/$defs/ratio"
+        },
+        "downhill": {
+          "$ref": "#/$defs/ratio"
+        },
+        "snapDistance": {
+          "$ref": "#/$defs/nonnegative-su"
+        }
+      },
+      "required": [
+        "walkSpeed",
+        "runSpeed",
+        "acceleration",
+        "braking",
+        "maxSlope",
+        "uphill",
+        "downhill",
+        "snapDistance"
+      ],
+      "additionalProperties": false
+    },
+    "air": {
+      "type": "object",
+      "properties": {
+        "gravity": {
+          "$ref": "#/$defs/nonnegative-su"
+        },
+        "maxFall": {
+          "$ref": "#/$defs/nonnegative-su"
+        },
+        "acceleration": {
+          "$ref": "#/$defs/nonnegative-su"
+        },
+        "maxSpeed": {
+          "$ref": "#/$defs/nonnegative-su"
+        }
+      },
+      "required": [
+        "gravity",
+        "maxFall",
+        "acceleration",
+        "maxSpeed"
+      ],
+      "additionalProperties": false
+    },
+    "drop": {
+      "type": "object",
+      "properties": {
+        "canDrop": {
+          "type": "boolean"
+        },
+        "timeoutTicks": {
+          "$ref": "#/$defs/ticks"
+        }
+      },
+      "required": [
+        "canDrop",
+        "timeoutTicks"
+      ],
+      "additionalProperties": false
+    },
+    "abilities": {
+      "type": "array",
+      "minItems": 0,
+      "maxItems": 13,
+      "items": {
+        "$ref": "#/$defs/ability"
+      }
+    },
+    "abilityTags": {
+      "type": "array",
+      "minItems": 0,
+      "maxItems": 256,
+      "items": {
+        "$ref": "#/$defs/text"
+      },
+      "uniqueItems": true
+    },
+    "forbiddenMaterialTags": {
+      "type": "array",
+      "minItems": 0,
+      "maxItems": 256,
+      "items": {
+        "$ref": "#/$defs/text"
+      },
+      "uniqueItems": true
+    }
+  },
+  "required": [
+    "format",
+    "version",
+    "id",
+    "name",
+    "controller",
+    "units",
+    "collider",
+    "support",
+    "grabHeight",
+    "category",
+    "mask",
+    "ground",
+    "air",
+    "drop",
+    "abilities",
+    "abilityTags",
+    "forbiddenMaterialTags"
+  ],
+  "additionalProperties": false,
+  "$defs": {
+    "id": {
+      "description": "Persistent ID: unique across a map's object collections; document IDs unique across a bundle.",
+      "type": "string",
+      "pattern": "^[a-z0-9][a-z0-9._:-]{0,95}$"
+    },
+    "key": {
+      "description": "Catalog and contract key; same grammar as IDs.",
+      "type": "string",
+      "pattern": "^[a-z0-9][a-z0-9._:-]{0,95}$"
+    },
+    "coordinate": {
+      "description": "World units on the 1/16 WU quantum within ±131,072 WU (2^17).",
+      "type": "number",
+      "multipleOf": 0.0625,
+      "minimum": -131072,
+      "maximum": 131072
+    },
+    "length": {
+      "description": "Positive length on the 1/16 WU quantum, at most 262,144 WU (2^18).",
+      "type": "number",
+      "multipleOf": 0.0625,
+      "exclusiveMinimum": 0,
+      "maximum": 262144
+    },
+    "ticks": {
+      "description": "Duration in integer ticks at the declared 60 Hz.",
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 9007199254740991
+    },
+    "contract-ref": {
+      "type": "object",
+      "properties": {
+        "key": {
+          "$ref": "#/$defs/key"
+        },
+        "version": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 9007199254740991
+        }
+      },
+      "required": [
+        "key",
+        "version"
+      ],
+      "additionalProperties": false
+    },
+    "su": {
+      "type": "integer",
+      "minimum": -9007199254740991,
+      "maximum": 9007199254740991
+    },
+    "nonnegative-su": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 9007199254740991
+    },
+    "positive-su": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 9007199254740991
+    },
+    "count": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 9007199254740991
+    },
+    "positive-ticks": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 9007199254740991
+    },
+    "text": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 256
+    },
+    "ratio": {
+      "type": "object",
+      "properties": {
+        "num": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 65535
+        },
+        "den": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 65535
+        }
+      },
+      "required": [
+        "num",
+        "den"
+      ],
+      "additionalProperties": false
+    },
+    "slope": {
+      "type": "object",
+      "properties": {
+        "rise": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 65535
+        },
+        "run": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 65535
+        }
+      },
+      "required": [
+        "rise",
+        "run"
+      ],
+      "additionalProperties": false
+    },
+    "rect-collider": {
+      "type": "object",
+      "properties": {
+        "kind": {
+          "const": "rect"
+        },
+        "width": {
+          "$ref": "#/$defs/length"
+        },
+        "height": {
+          "$ref": "#/$defs/length"
+        }
+      },
+      "required": [
+        "kind",
+        "width",
+        "height"
+      ],
+      "additionalProperties": false
+    },
+    "capsule-collider": {
+      "type": "object",
+      "properties": {
+        "kind": {
+          "const": "capsule"
+        },
+        "radius": {
+          "$ref": "#/$defs/length"
+        },
+        "height": {
+          "$ref": "#/$defs/length"
+        }
+      },
+      "required": [
+        "kind",
+        "radius",
+        "height"
+      ],
+      "additionalProperties": false
+    },
+    "collider": {
+      "oneOf": [
+        {
+          "$ref": "#/$defs/rect-collider"
+        },
+        {
+          "$ref": "#/$defs/capsule-collider"
+        }
+      ]
+    },
+    "param-ref": {
+      "type": "object",
+      "properties": {
+        "kind": {
+          "enum": [
+            "layer",
+            "visual",
+            "body",
+            "shape",
+            "foothold",
+            "traversal",
+            "region",
+            "entity",
+            "waypoint",
+            "route",
+            "trigger",
+            "encounter",
+            "asset",
+            "movement",
+            "flag",
+            "group",
+            "presentation",
+            "material"
+          ]
+        },
+        "id": {
+          "$ref": "#/$defs/id"
+        },
+        "mapId": {
+          "$ref": "#/$defs/id"
+        }
+      },
+      "required": [
+        "kind",
+        "id"
+      ],
+      "additionalProperties": false
+    },
+    "param-value": {
+      "oneOf": [
+        {
+          "type": "string",
+          "maxLength": 4096
+        },
+        {
+          "type": "number",
+          "minimum": -9007199254740991,
+          "maximum": 9007199254740991
+        },
+        {
+          "type": "boolean"
+        },
+        {
+          "type": "object",
+          "properties": {
+            "ref": {
+              "$ref": "#/$defs/param-ref"
+            }
+          },
+          "required": [
+            "ref"
+          ],
+          "additionalProperties": false
+        }
+      ]
+    },
+    "params": {
+      "type": "object",
+      "maxProperties": 256,
+      "propertyNames": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 96
+      },
+      "additionalProperties": {
+        "$ref": "#/$defs/param-value"
+      },
+      "$comment": "Scalar/typed-ref parameter envelope only. ML-006 resolves catalog field names, required fields and kinds; no executable payload."
+    },
+    "call": {
+      "type": "object",
+      "properties": {
+        "key": {
+          "$ref": "#/$defs/key"
+        },
+        "version": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 9007199254740991
+        },
+        "params": {
+          "$ref": "#/$defs/params"
+        }
+      },
+      "required": [
+        "key",
+        "version",
+        "params"
+      ],
+      "additionalProperties": false
+    },
+    "jump-ability": {
+      "type": "object",
+      "properties": {
+        "kind": {
+          "const": "jump"
+        },
+        "version": {
+          "const": 1
+        },
+        "impulse": {
+          "$ref": "#/$defs/positive-su"
+        },
+        "holdTicks": {
+          "$ref": "#/$defs/ticks"
+        },
+        "holdGravity": {
+          "$ref": "#/$defs/nonnegative-su"
+        },
+        "release": {
+          "$ref": "#/$defs/ratio"
+        },
+        "airJumps": {
+          "$ref": "#/$defs/count"
+        },
+        "airborneImpulse": {
+          "$ref": "#/$defs/positive-su"
+        }
+      },
+      "required": [
+        "kind",
+        "version",
+        "impulse",
+        "holdTicks",
+        "holdGravity",
+        "release",
+        "airJumps",
+        "airborneImpulse"
+      ],
+      "additionalProperties": false
+    },
+    "climb-ability": {
+      "type": "object",
+      "properties": {
+        "kind": {
+          "const": "climb"
+        },
+        "version": {
+          "const": 1
+        },
+        "speed": {
+          "$ref": "#/$defs/positive-su"
+        },
+        "ladder": {
+          "type": "boolean"
+        },
+        "rope": {
+          "type": "boolean"
+        },
+        "jumpOff": {
+          "type": "array",
+          "prefixItems": [
+            {
+              "$ref": "#/$defs/su"
+            },
+            {
+              "$ref": "#/$defs/su"
+            }
+          ],
+          "minItems": 2,
+          "maxItems": 2,
+          "items": false
+        }
+      },
+      "required": [
+        "kind",
+        "version",
+        "speed",
+        "ladder",
+        "rope",
+        "jumpOff"
+      ],
+      "additionalProperties": false
+    },
+    "dash-ability": {
+      "type": "object",
+      "properties": {
+        "kind": {
+          "const": "dash"
+        },
+        "version": {
+          "const": 1
+        },
+        "mode": {
+          "enum": [
+            "ground",
+            "air"
+          ]
+        },
+        "speed": {
+          "$ref": "#/$defs/positive-su"
+        },
+        "durationTicks": {
+          "$ref": "#/$defs/positive-ticks"
+        },
+        "cooldownTicks": {
+          "$ref": "#/$defs/ticks"
+        },
+        "charges": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 9007199254740991
+        },
+        "reset": {
+          "enum": [
+            "ground",
+            "timer"
+          ]
+        },
+        "gravity": {
+          "$ref": "#/$defs/ratio"
+        },
+        "collision": {
+          "const": "stop"
+        }
+      },
+      "required": [
+        "kind",
+        "version",
+        "mode",
+        "speed",
+        "durationTicks",
+        "cooldownTicks",
+        "charges",
+        "reset",
+        "gravity",
+        "collision"
+      ],
+      "additionalProperties": false
+    },
+    "wall-ability": {
+      "type": "object",
+      "properties": {
+        "kind": {
+          "const": "wall"
+        },
+        "version": {
+          "const": 1
+        },
+        "permissions": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 3,
+          "items": {
+            "enum": [
+              "slide",
+              "jump",
+              "climb"
+            ]
+          },
+          "uniqueItems": true
+        },
+        "slideMaxSpeed": {
+          "$ref": "#/$defs/nonnegative-su"
+        },
+        "jumpImpulse": {
+          "type": "array",
+          "prefixItems": [
+            {
+              "$ref": "#/$defs/su"
+            },
+            {
+              "$ref": "#/$defs/su"
+            }
+          ],
+          "minItems": 2,
+          "maxItems": 2,
+          "items": false
+        },
+        "climbSpeed": {
+          "$ref": "#/$defs/nonnegative-su"
+        },
+        "staminaTicks": {
+          "$ref": "#/$defs/ticks"
+        }
+      },
+      "required": [
+        "kind",
+        "version",
+        "permissions",
+        "slideMaxSpeed",
+        "jumpImpulse",
+        "climbSpeed",
+        "staminaTicks"
+      ],
+      "additionalProperties": false
+    },
+    "ledge-ability": {
+      "type": "object",
+      "properties": {
+        "kind": {
+          "const": "ledge"
+        },
+        "version": {
+          "const": 1
+        },
+        "grabReach": {
+          "$ref": "#/$defs/length"
+        },
+        "climbTicks": {
+          "$ref": "#/$defs/positive-ticks"
+        },
+        "action": {
+          "$ref": "#/$defs/contract-ref"
+        }
+      },
+      "required": [
+        "kind",
+        "version",
+        "grabReach",
+        "climbTicks",
+        "action"
+      ],
+      "additionalProperties": false
+    },
+    "swim-ability": {
+      "type": "object",
+      "properties": {
+        "kind": {
+          "const": "swim"
+        },
+        "version": {
+          "const": 1
+        },
+        "speed": {
+          "$ref": "#/$defs/positive-su"
+        },
+        "acceleration": {
+          "$ref": "#/$defs/nonnegative-su"
+        },
+        "buoyancy": {
+          "$ref": "#/$defs/su"
+        },
+        "breachImpulse": {
+          "$ref": "#/$defs/nonnegative-su"
+        }
+      },
+      "required": [
+        "kind",
+        "version",
+        "speed",
+        "acceleration",
+        "buoyancy",
+        "breachImpulse"
+      ],
+      "additionalProperties": false
+    },
+    "fly-ability": {
+      "type": "object",
+      "properties": {
+        "kind": {
+          "const": "fly"
+        },
+        "version": {
+          "const": 1
+        },
+        "speed": {
+          "$ref": "#/$defs/positive-su"
+        },
+        "acceleration": {
+          "$ref": "#/$defs/nonnegative-su"
+        },
+        "turnAcceleration": {
+          "$ref": "#/$defs/nonnegative-su"
+        },
+        "hover": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "kind",
+        "version",
+        "speed",
+        "acceleration",
+        "turnAcceleration",
+        "hover"
+      ],
+      "additionalProperties": false
+    },
+    "grapple-ability": {
+      "type": "object",
+      "properties": {
+        "kind": {
+          "const": "grapple"
+        },
+        "version": {
+          "const": 1
+        },
+        "range": {
+          "$ref": "#/$defs/length"
+        },
+        "reelSpeed": {
+          "$ref": "#/$defs/nonnegative-su"
+        },
+        "lengthRange": {
+          "type": "array",
+          "prefixItems": [
+            {
+              "$ref": "#/$defs/length"
+            },
+            {
+              "$ref": "#/$defs/length"
+            }
+          ],
+          "minItems": 2,
+          "maxItems": 2,
+          "items": false
+        },
+        "swingGravity": {
+          "$ref": "#/$defs/ratio"
+        },
+        "solver": {
+          "$ref": "#/$defs/contract-ref"
+        }
+      },
+      "required": [
+        "kind",
+        "version",
+        "range",
+        "reelSpeed",
+        "lengthRange",
+        "swingGravity",
+        "solver"
+      ],
+      "additionalProperties": false
+    },
+    "teleport-ability": {
+      "type": "object",
+      "properties": {
+        "kind": {
+          "const": "teleport"
+        },
+        "version": {
+          "const": 1
+        },
+        "range": {
+          "$ref": "#/$defs/length"
+        },
+        "cooldownTicks": {
+          "$ref": "#/$defs/ticks"
+        },
+        "target": {
+          "enum": [
+            "anchor",
+            "lineOfSight"
+          ]
+        },
+        "clearance": {
+          "const": "fullBody"
+        }
+      },
+      "required": [
+        "kind",
+        "version",
+        "range",
+        "cooldownTicks",
+        "target",
+        "clearance"
+      ],
+      "additionalProperties": false
+    },
+    "launch-ability": {
+      "type": "object",
+      "properties": {
+        "kind": {
+          "const": "launch"
+        },
+        "version": {
+          "const": 1
+        },
+        "maxImpulse": {
+          "$ref": "#/$defs/positive-su"
+        },
+        "airControl": {
+          "$ref": "#/$defs/ratio"
+        },
+        "canRecover": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "kind",
+        "version",
+        "maxImpulse",
+        "airControl",
+        "canRecover"
+      ],
+      "additionalProperties": false
+    },
+    "modifier-ability": {
+      "type": "object",
+      "properties": {
+        "kind": {
+          "const": "modifier"
+        },
+        "version": {
+          "const": 1
+        },
+        "allowed": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 256,
+          "items": {
+            "$ref": "#/$defs/contract-ref"
+          },
+          "uniqueItems": true
+        },
+        "stacking": {
+          "enum": [
+            "replace",
+            "multiplyThenClamp"
+          ]
+        }
+      },
+      "required": [
+        "kind",
+        "version",
+        "allowed",
+        "stacking"
+      ],
+      "additionalProperties": false
+    },
+    "registered-ability": {
+      "type": "object",
+      "properties": {
+        "kind": {
+          "const": "registered"
+        },
+        "version": {
+          "const": 1
+        },
+        "definition": {
+          "$ref": "#/$defs/call"
+        },
+        "solver": {
+          "$ref": "#/$defs/contract-ref"
+        }
+      },
+      "required": [
+        "kind",
+        "version",
+        "definition",
+        "solver"
+      ],
+      "additionalProperties": false
+    },
+    "ability": {
+      "oneOf": [
+        {
+          "$ref": "#/$defs/jump-ability"
+        },
+        {
+          "$ref": "#/$defs/climb-ability"
+        },
+        {
+          "$ref": "#/$defs/dash-ability"
+        },
+        {
+          "$ref": "#/$defs/wall-ability"
+        },
+        {
+          "$ref": "#/$defs/ledge-ability"
+        },
+        {
+          "$ref": "#/$defs/swim-ability"
+        },
+        {
+          "$ref": "#/$defs/fly-ability"
+        },
+        {
+          "$ref": "#/$defs/grapple-ability"
+        },
+        {
+          "$ref": "#/$defs/teleport-ability"
+        },
+        {
+          "$ref": "#/$defs/launch-ability"
+        },
+        {
+          "$ref": "#/$defs/modifier-ability"
+        },
+        {
+          "$ref": "#/$defs/registered-ability"
+        }
+      ]
+    }
+  }
+}

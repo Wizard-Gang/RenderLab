@@ -1,0 +1,2455 @@
+{
+  "description": "ML-007 independent final-byte reader conformance. Golden inputs are the unchanged R1 forest source and export bytes, pinned by SHA-256. Every case is an inert edit record applied to a temporary copy of the export bundle; none is executed.",
+  "reader": "tests/consumer/reader/read-bundle.mjs",
+  "schemas": "schemas",
+  "golden": {
+    "export": {
+      "path": "docs/specifications/2026-10-17-maplab-r1/examples/forest-export",
+      "bundleSha256": "0a39dafd637c7cefa184ce9f18bd909d47f3eef317de3418bb3573614bf323ea",
+      "maps": [
+        "map.clearing",
+        "map.forest"
+      ],
+      "portals": [
+        {
+          "from": "map.clearing",
+          "to": {
+            "mapId": "map.forest",
+            "entityId": "checkpoint.east"
+          }
+        },
+        {
+          "from": "map.forest",
+          "to": {
+            "mapId": "map.clearing",
+            "entityId": "start.arrival"
+          }
+        }
+      ]
+    },
+    "projectIndex": {
+      "path": "docs/specifications/2026-10-17-maplab-r1/examples/forest/maplab.project.json",
+      "sha256": "2789a355d2aead4b685f6a035d8f978e7b686327457744119e6b69247c0d85be"
+    },
+    "source": [
+      {
+        "path": "docs/specifications/2026-10-17-maplab-r1/examples/forest/maps/forest.map.json",
+        "sha256": "753ada288567e26f83a8c73c1aa31bf0a34ac041ed232a678838d6cde2a68d0b",
+        "schema": "schemas/maplab.map.v1.schema.json"
+      },
+      {
+        "path": "docs/specifications/2026-10-17-maplab-r1/examples/forest/maps/clearing.map.json",
+        "sha256": "8bae05fa65ad90b14c634f3bdea9fb65e547ca0c1715fad15c76dc9717adc98a",
+        "schema": "schemas/maplab.map.v1.schema.json"
+      },
+      {
+        "path": "docs/specifications/2026-10-17-maplab-r1/examples/forest/movement/player.movement.json",
+        "sha256": "982cd3eb44af871b0231ed8089a66abd910f6183f98d76a10d75b026c04f491a",
+        "schema": "schemas/maplab.movement.v1.schema.json"
+      },
+      {
+        "path": "docs/specifications/2026-10-17-maplab-r1/examples/forest/movement/ground.movement.json",
+        "sha256": "4622e22667059fc034863fb0228400f7c11f4e0e8377d7ae07bfd5fa7c6f9735",
+        "schema": "schemas/maplab.movement.v1.schema.json"
+      },
+      {
+        "path": "docs/specifications/2026-10-17-maplab-r1/examples/forest/movement/flyer.movement.json",
+        "sha256": "481b726490c9fc141f4a6fd48b736c49767b74bab869226e69502d085914df72",
+        "schema": "schemas/maplab.movement.v1.schema.json"
+      },
+      {
+        "path": "docs/specifications/2026-10-17-maplab-r1/examples/forest/catalogs/core.catalog.json",
+        "sha256": "14ed5f759547252c2d15818bdd964b13f7e661af9ccb3181d32420b62b470ada",
+        "schema": "schemas/maplab.catalog.v1.schema.json"
+      },
+      {
+        "path": "docs/specifications/2026-10-17-maplab-r1/examples/forest/tilesets/forest.tileset.json",
+        "sha256": "c4b3aad547aef4b9324bffc6add8f646951843706a734943b1909b4150e133ba",
+        "schema": "schemas/maplab.tileset.v1.schema.json"
+      },
+      {
+        "path": "docs/specifications/2026-10-17-maplab-r1/examples/forest/prefabs/tree.prefab.json",
+        "sha256": "09d79e1dd388f1c7cb0864523cd90d9a1a01b6069601ece7ef88c8a0052503ed",
+        "schema": "schemas/maplab.prefab.v1.schema.json"
+      }
+    ]
+  },
+  "cases": [
+    {
+      "id": "symlink-entry",
+      "group": "inventory",
+      "edits": [
+        {
+          "symlink": "maps/alias.map.json",
+          "target": "forest.map.json"
+        }
+      ],
+      "expect": {
+        "ok": false,
+        "code": "bundle.symlink",
+        "file": null,
+        "path": "maps/alias.map.json"
+      }
+    },
+    {
+      "id": "hidden-entry-path",
+      "group": "inventory",
+      "edits": [
+        {
+          "add": "maps/.hidden.json",
+          "text": "{}"
+        }
+      ],
+      "expect": {
+        "ok": false,
+        "code": "bundle.path",
+        "file": null,
+        "path": "maps/.hidden.json"
+      }
+    },
+    {
+      "id": "reserved-device-entry",
+      "group": "inventory",
+      "edits": [
+        {
+          "add": "maps/con.json",
+          "text": "{}"
+        }
+      ],
+      "expect": {
+        "ok": false,
+        "code": "bundle.path",
+        "file": null,
+        "path": "maps/con.json"
+      }
+    },
+    {
+      "id": "nested-archive",
+      "group": "inventory",
+      "edits": [
+        {
+          "add": "assets/pack.zip",
+          "text": "PK",
+          "role": "foreign"
+        }
+      ],
+      "expect": {
+        "ok": false,
+        "code": "bundle.nested-archive",
+        "file": null,
+        "path": "assets/pack.zip"
+      }
+    },
+    {
+      "id": "manifest-missing",
+      "group": "inventory",
+      "edits": [
+        {
+          "delete": "manifest.json"
+        }
+      ],
+      "expect": {
+        "ok": false,
+        "code": "bundle.manifest-missing",
+        "file": null,
+        "path": "$"
+      }
+    },
+    {
+      "id": "unlisted-file",
+      "group": "inventory",
+      "edits": [
+        {
+          "add": "notes.txt",
+          "text": "untracked"
+        }
+      ],
+      "expect": {
+        "ok": false,
+        "code": "inventory.unlisted",
+        "file": null,
+        "path": "notes.txt"
+      }
+    },
+    {
+      "id": "missing-listed-file",
+      "group": "inventory",
+      "edits": [
+        {
+          "delete": "movement/flyer.movement.json"
+        }
+      ],
+      "expect": {
+        "ok": false,
+        "code": "inventory.missing",
+        "file": "manifest.json",
+        "path": "$.files[3]"
+      }
+    },
+    {
+      "id": "tampered-size",
+      "group": "manifest",
+      "edits": [
+        {
+          "file": "manifest.json",
+          "set": "/files/0/bytes",
+          "value": 2524
+        }
+      ],
+      "expect": {
+        "ok": false,
+        "code": "inventory.size",
+        "file": "manifest.json",
+        "path": "$.files[0].bytes"
+      }
+    },
+    {
+      "id": "tampered-document-bytes",
+      "group": "manifest",
+      "edits": [
+        {
+          "file": "maps/clearing.map.json",
+          "replace": "Clearing",
+          "with": "Clearinq",
+          "rehash": false
+        }
+      ],
+      "expect": {
+        "ok": false,
+        "code": "inventory.sha256",
+        "file": "manifest.json",
+        "path": "$.files[1].sha256"
+      }
+    },
+    {
+      "id": "tampered-manifest-digest",
+      "group": "manifest",
+      "edits": [
+        {
+          "file": "manifest.json",
+          "set": "/files/2/sha256",
+          "value": "0000000000000000000000000000000000000000000000000000000000000000"
+        }
+      ],
+      "expect": {
+        "ok": false,
+        "code": "inventory.sha256",
+        "file": "manifest.json",
+        "path": "$.files[2].sha256"
+      }
+    },
+    {
+      "id": "untrusted-bundle-digest",
+      "group": "manifest",
+      "edits": [
+        {
+          "file": "manifest.json",
+          "set": "/generator/version",
+          "value": "0.0.1-tampered"
+        }
+      ],
+      "expect": {
+        "ok": false,
+        "code": "bundle.digest",
+        "file": null,
+        "path": "$"
+      },
+      "trustedDigest": true
+    },
+    {
+      "id": "manifest-duplicate-key",
+      "group": "manifest",
+      "edits": [
+        {
+          "file": "manifest.json",
+          "replace": "\"entryMapId\":\"map.forest\",",
+          "with": "\"entryMapId\":\"map.forest\",\"entryMapId\":\"map.clearing\","
+        }
+      ],
+      "expect": {
+        "ok": false,
+        "code": "json.duplicate-key",
+        "file": "manifest.json",
+        "path": "$"
+      }
+    },
+    {
+      "id": "manifest-not-canonical",
+      "group": "manifest",
+      "edits": [
+        {
+          "file": "manifest.json",
+          "reencode": "pretty"
+        }
+      ],
+      "expect": {
+        "ok": false,
+        "code": "manifest.canonical",
+        "file": "manifest.json",
+        "path": "$"
+      }
+    },
+    {
+      "id": "manifest-version",
+      "group": "manifest",
+      "edits": [
+        {
+          "file": "manifest.json",
+          "set": "/version",
+          "value": 2
+        }
+      ],
+      "expect": {
+        "ok": false,
+        "code": "document.version",
+        "file": "manifest.json",
+        "path": "$.version"
+      }
+    },
+    {
+      "id": "manifest-lists-itself",
+      "group": "manifest",
+      "edits": [
+        {
+          "file": "manifest.json",
+          "insertSorted": "/files",
+          "value": {
+            "path": "manifest.json",
+            "bytes": 1,
+            "sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+            "role": "authored"
+          }
+        }
+      ],
+      "expect": {
+        "ok": false,
+        "code": "manifest.self",
+        "file": "manifest.json",
+        "path": "$.files[1]"
+      }
+    },
+    {
+      "id": "manifest-traversal-path",
+      "group": "manifest",
+      "edits": [
+        {
+          "file": "manifest.json",
+          "set": "/files/0/path",
+          "value": "../catalogs/core.catalog.json"
+        }
+      ],
+      "expect": {
+        "ok": false,
+        "code": "schema.pattern",
+        "file": "manifest.json",
+        "path": "$.files[0].path"
+      }
+    },
+    {
+      "id": "manifest-case-alias",
+      "group": "manifest",
+      "edits": [
+        {
+          "file": "manifest.json",
+          "insertSorted": "/files",
+          "value": {
+            "path": "MAPS/forest.map.json",
+            "bytes": 20969,
+            "sha256": "a12b1c44623198210ed6c65b0730c1c904fd0810723fff852baf5919a28ed965",
+            "role": "authored"
+          }
+        }
+      ],
+      "expect": {
+        "ok": false,
+        "code": "manifest.path",
+        "file": "manifest.json",
+        "path": "$.files[3].path"
+      }
+    },
+    {
+      "id": "bundled-schema-mismatch",
+      "group": "manifest",
+      "edits": [
+        {
+          "add": "schemas/maplab.map.v1.schema.json",
+          "copyOf": "catalogs/core.catalog.json",
+          "role": "schema"
+        }
+      ],
+      "expect": {
+        "ok": false,
+        "code": "schema.mismatch",
+        "file": "manifest.json",
+        "path": "$.files[6]"
+      }
+    },
+    {
+      "id": "asset-unapproved-extension",
+      "group": "manifest",
+      "edits": [
+        {
+          "add": "art/tree.bmp",
+          "text": "BM",
+          "role": "asset"
+        }
+      ],
+      "expect": {
+        "ok": false,
+        "code": "asset.extension",
+        "file": "manifest.json",
+        "path": "$.files[0].path"
+      }
+    },
+    {
+      "id": "malformed-json",
+      "group": "document",
+      "edits": [
+        {
+          "file": "maps/forest.map.json",
+          "truncate": 1
+        }
+      ],
+      "expect": {
+        "ok": false,
+        "code": "json.syntax",
+        "file": "maps/forest.map.json",
+        "path": "$"
+      }
+    },
+    {
+      "id": "invalid-utf8",
+      "group": "document",
+      "edits": [
+        {
+          "file": "maps/forest.map.json",
+          "replace": "Forest acceptance world",
+          "withHex": "466f72657374ff"
+        }
+      ],
+      "expect": {
+        "ok": false,
+        "code": "json.utf8",
+        "file": "maps/forest.map.json",
+        "path": "$"
+      }
+    },
+    {
+      "id": "byte-order-mark",
+      "group": "document",
+      "edits": [
+        {
+          "file": "maps/clearing.map.json",
+          "prependHex": "efbbbf"
+        }
+      ],
+      "expect": {
+        "ok": false,
+        "code": "json.bom",
+        "file": "maps/clearing.map.json",
+        "path": "$"
+      }
+    },
+    {
+      "id": "duplicate-member",
+      "group": "document",
+      "edits": [
+        {
+          "file": "maps/forest.map.json",
+          "replace": "\"name\":\"Forest acceptance world\"",
+          "with": "\"name\":\"Forest acceptance world\",\"name\":\"Shadow\""
+        }
+      ],
+      "expect": {
+        "ok": false,
+        "code": "json.duplicate-key",
+        "file": "maps/forest.map.json",
+        "path": "$.metadata"
+      }
+    },
+    {
+      "id": "lone-surrogate",
+      "group": "document",
+      "edits": [
+        {
+          "file": "maps/clearing.map.json",
+          "replace": "\"Clearing",
+          "with": "\"\\ud800Clearing"
+        }
+      ],
+      "expect": {
+        "ok": false,
+        "code": "json.surrogate",
+        "file": "maps/clearing.map.json",
+        "path": "$.bodies[1].name"
+      }
+    },
+    {
+      "id": "future-version",
+      "group": "document",
+      "edits": [
+        {
+          "file": "maps/forest.map.json",
+          "set": "/version",
+          "value": 2
+        }
+      ],
+      "expect": {
+        "ok": false,
+        "code": "document.version",
+        "file": "maps/forest.map.json",
+        "path": "$.version"
+      }
+    },
+    {
+      "id": "older-version",
+      "group": "document",
+      "edits": [
+        {
+          "file": "movement/ground.movement.json",
+          "set": "/version",
+          "value": 0
+        }
+      ],
+      "expect": {
+        "ok": false,
+        "code": "document.version",
+        "file": "movement/ground.movement.json",
+        "path": "$.version"
+      }
+    },
+    {
+      "id": "unknown-format",
+      "group": "document",
+      "edits": [
+        {
+          "file": "movement/flyer.movement.json",
+          "set": "/format",
+          "value": "maplab.motion"
+        }
+      ],
+      "expect": {
+        "ok": false,
+        "code": "document.unsupported-format",
+        "file": "movement/flyer.movement.json",
+        "path": "$.format"
+      }
+    },
+    {
+      "id": "document-identity",
+      "group": "document",
+      "edits": [
+        {
+          "file": "catalogs/core.catalog.json",
+          "set": "/id",
+          "value": "catalog.other"
+        }
+      ],
+      "expect": {
+        "ok": false,
+        "code": "manifest.document-identity",
+        "file": "catalogs/core.catalog.json",
+        "path": "$"
+      }
+    },
+    {
+      "id": "document-not-canonical",
+      "group": "document",
+      "edits": [
+        {
+          "file": "movement/player.movement.json",
+          "reencode": "pretty"
+        }
+      ],
+      "expect": {
+        "ok": false,
+        "code": "document.canonical",
+        "file": "movement/player.movement.json",
+        "path": "$"
+      }
+    },
+    {
+      "id": "unknown-member",
+      "group": "document",
+      "edits": [
+        {
+          "file": "maps/forest.map.json",
+          "set": "/script",
+          "value": "run()"
+        }
+      ],
+      "expect": {
+        "ok": false,
+        "code": "schema.additionalProperties",
+        "file": "maps/forest.map.json",
+        "path": "$.script"
+      }
+    },
+    {
+      "id": "executable-payload",
+      "group": "document",
+      "edits": [
+        {
+          "file": "maps/forest.map.json",
+          "set": "/entities/3/script",
+          "value": "never executed"
+        }
+      ],
+      "expect": {
+        "ok": false,
+        "code": "schema.oneOf",
+        "file": "maps/forest.map.json",
+        "path": "$.entities[3]"
+      }
+    },
+    {
+      "id": "unsupported-required-contract",
+      "group": "document",
+      "edits": [
+        {
+          "file": "manifest.json",
+          "insertSorted": "/requiredContracts",
+          "value": {
+            "key": "maplab.grapple",
+            "version": 1
+          }
+        }
+      ],
+      "expect": {
+        "ok": false,
+        "code": "contract.unsupported",
+        "file": "manifest.json",
+        "path": "$.requiredContracts"
+      }
+    },
+    {
+      "id": "undeclared-format-contract",
+      "group": "document",
+      "edits": [
+        {
+          "file": "manifest.json",
+          "remove": "/requiredContracts/7"
+        }
+      ],
+      "expect": {
+        "ok": false,
+        "code": "contract.undeclared",
+        "file": "manifest.json",
+        "path": "$.requiredContracts"
+      }
+    },
+    {
+      "id": "undeclared-semantic-contract",
+      "group": "document",
+      "edits": [
+        {
+          "file": "manifest.json",
+          "remove": "/requiredContracts/6"
+        }
+      ],
+      "expect": {
+        "ok": false,
+        "code": "contract.undeclared",
+        "file": "manifest.json",
+        "path": "$.requiredContracts"
+      }
+    },
+    {
+      "id": "unsupported-map-feature",
+      "group": "document",
+      "edits": [
+        {
+          "file": "maps/forest.map.json",
+          "append": "/requiredFeatures",
+          "value": {
+            "key": "maplab.swim",
+            "version": 1
+          }
+        }
+      ],
+      "expect": {
+        "ok": false,
+        "code": "contract.unsupported",
+        "file": "maps/forest.map.json",
+        "path": "$.requiredFeatures[3]"
+      }
+    },
+    {
+      "id": "external-map-bundle",
+      "group": "document",
+      "edits": [
+        {
+          "file": "manifest.json",
+          "append": "/externalMaps",
+          "value": {
+            "mapId": "map.cave",
+            "bundleSha256": "1111111111111111111111111111111111111111111111111111111111111111"
+          }
+        }
+      ],
+      "expect": {
+        "ok": false,
+        "code": "contract.external-maps",
+        "file": "manifest.json",
+        "path": "$.externalMaps"
+      }
+    },
+    {
+      "id": "missing-dependency",
+      "group": "closure",
+      "edits": [
+        {
+          "delete": "movement/ground.movement.json",
+          "unlist": true
+        }
+      ],
+      "expect": {
+        "ok": false,
+        "code": "dependency.missing",
+        "file": "maps/forest.map.json",
+        "path": "$.dependencies[3]"
+      }
+    },
+    {
+      "id": "dependency-path-disagrees",
+      "group": "closure",
+      "edits": [
+        {
+          "file": "maps/forest.map.json",
+          "set": "/dependencies/0/path",
+          "value": "catalogs/other.catalog.json"
+        }
+      ],
+      "expect": {
+        "ok": false,
+        "code": "dependency.identity",
+        "file": "maps/forest.map.json",
+        "path": "$.dependencies[0]"
+      }
+    },
+    {
+      "id": "unreachable-document",
+      "group": "closure",
+      "edits": [
+        {
+          "add": "movement/extra.movement.json",
+          "copyOf": "movement/flyer.movement.json",
+          "role": "authored",
+          "document": {
+            "format": "maplab.movement",
+            "id": "movement.flyer-copy",
+            "version": 1
+          }
+        },
+        {
+          "file": "movement/extra.movement.json",
+          "set": "/id",
+          "value": "movement.flyer-copy"
+        }
+      ],
+      "expect": {
+        "ok": false,
+        "code": "closure.unreachable",
+        "file": "manifest.json",
+        "path": "$.documents"
+      }
+    },
+    {
+      "id": "entry-not-map",
+      "group": "closure",
+      "edits": [
+        {
+          "file": "manifest.json",
+          "set": "/entryMapId",
+          "value": "catalog.core"
+        }
+      ],
+      "expect": {
+        "ok": false,
+        "code": "closure.entry",
+        "file": "manifest.json",
+        "path": "$.entryMapId"
+      }
+    },
+    {
+      "id": "duplicate-object-id",
+      "group": "reference",
+      "edits": [
+        {
+          "file": "maps/forest.map.json",
+          "append": "/flags",
+          "value": {
+            "id": "region.portal",
+            "initial": false
+          }
+        }
+      ],
+      "expect": {
+        "ok": false,
+        "code": "object.duplicate",
+        "file": "maps/forest.map.json",
+        "path": "$.flags[1].id"
+      }
+    },
+    {
+      "id": "dangling-foothold",
+      "group": "reference",
+      "edits": [
+        {
+          "file": "maps/forest.map.json",
+          "set": "/entities/0/anchor/footholdId",
+          "value": "fh.nowhere"
+        }
+      ],
+      "expect": {
+        "ok": false,
+        "code": "reference.dangling",
+        "file": "maps/forest.map.json",
+        "path": "$.entities[0].anchor.footholdId"
+      }
+    },
+    {
+      "id": "wrong-reference-kind",
+      "group": "reference",
+      "edits": [
+        {
+          "file": "maps/forest.map.json",
+          "set": "/entities/0/anchor/footholdId",
+          "value": "body.gate"
+        }
+      ],
+      "expect": {
+        "ok": false,
+        "code": "reference.kind",
+        "file": "maps/forest.map.json",
+        "path": "$.entities[0].anchor.footholdId"
+      }
+    },
+    {
+      "id": "dangling-portal-map",
+      "group": "reference",
+      "edits": [
+        {
+          "file": "maps/forest.map.json",
+          "set": "/entities/4/destination/mapId",
+          "value": "map.nowhere"
+        }
+      ],
+      "expect": {
+        "ok": false,
+        "code": "portal.map",
+        "file": "maps/forest.map.json",
+        "path": "$.entities[4].destination.mapId"
+      }
+    },
+    {
+      "id": "dangling-portal-entity",
+      "group": "reference",
+      "edits": [
+        {
+          "file": "maps/forest.map.json",
+          "set": "/entities/4/destination/entityId",
+          "value": "start.nowhere"
+        }
+      ],
+      "expect": {
+        "ok": false,
+        "code": "portal.entity",
+        "file": "maps/forest.map.json",
+        "path": "$.entities[4].destination.entityId"
+      }
+    },
+    {
+      "id": "dangling-typed-ref",
+      "group": "reference",
+      "edits": [
+        {
+          "file": "maps/forest.map.json",
+          "set": "/encounters/0/onComplete/0/params/flag/ref/id",
+          "value": "flag.nowhere"
+        }
+      ],
+      "expect": {
+        "ok": false,
+        "code": "reference.dangling",
+        "file": "maps/forest.map.json",
+        "path": "$.encounters[0].onComplete[0].params.flag.ref.id"
+      }
+    },
+    {
+      "id": "typed-ref-wrong-kind",
+      "group": "reference",
+      "edits": [
+        {
+          "file": "maps/forest.map.json",
+          "set": "/triggers/0/actions/1/params/target/ref/id",
+          "value": "encounter.boss"
+        }
+      ],
+      "expect": {
+        "ok": false,
+        "code": "reference.kind",
+        "file": "maps/forest.map.json",
+        "path": "$.triggers[0].actions[1].params.target.ref.id"
+      }
+    },
+    {
+      "id": "dangling-movement-profile",
+      "group": "reference",
+      "edits": [
+        {
+          "file": "maps/forest.map.json",
+          "set": "/entities/8/movementId",
+          "value": "movement.nowhere"
+        }
+      ],
+      "expect": {
+        "ok": false,
+        "code": "reference.dangling",
+        "file": "maps/forest.map.json",
+        "path": "$.entities[8].movementId"
+      }
+    },
+    {
+      "id": "undeclared-catalog-call",
+      "group": "reference",
+      "edits": [
+        {
+          "file": "maps/forest.map.json",
+          "set": "/entities/0/activate/key",
+          "value": "core.nowhere"
+        }
+      ],
+      "expect": {
+        "ok": false,
+        "code": "catalog.missing",
+        "file": "maps/forest.map.json",
+        "path": "$.entities[0].activate"
+      }
+    },
+    {
+      "id": "asset-reserved-path",
+      "group": "reference",
+      "edits": [
+        {
+          "file": "maps/forest.map.json",
+          "append": "/assets",
+          "value": {
+            "id": "asset.tree-art",
+            "path": "art/aux.png",
+            "mediaType": "image/png",
+            "wuPerAssetUnit": 1,
+            "size": [
+              32,
+              32
+            ]
+          }
+        }
+      ],
+      "expect": {
+        "ok": false,
+        "code": "asset.path",
+        "file": "maps/forest.map.json",
+        "path": "$.assets[0].path"
+      }
+    },
+    {
+      "id": "asset-traversal-path",
+      "group": "reference",
+      "edits": [
+        {
+          "file": "maps/forest.map.json",
+          "append": "/assets",
+          "value": {
+            "id": "asset.tree-art",
+            "path": "art/../escape.png",
+            "mediaType": "image/png",
+            "wuPerAssetUnit": 1,
+            "size": [
+              32,
+              32
+            ]
+          }
+        }
+      ],
+      "expect": {
+        "ok": false,
+        "code": "schema.pattern",
+        "file": "maps/forest.map.json",
+        "path": "$.assets[0].path"
+      }
+    },
+    {
+      "id": "asset-media-mismatch",
+      "group": "reference",
+      "edits": [
+        {
+          "file": "maps/forest.map.json",
+          "append": "/assets",
+          "value": {
+            "id": "asset.tree-art",
+            "path": "art/tree.svg",
+            "mediaType": "image/png",
+            "wuPerAssetUnit": 1,
+            "size": [
+              32,
+              32
+            ]
+          }
+        }
+      ],
+      "expect": {
+        "ok": false,
+        "code": "asset.extension",
+        "file": "maps/forest.map.json",
+        "path": "$.assets[0].path"
+      }
+    },
+    {
+      "id": "asset-not-bundled",
+      "group": "reference",
+      "edits": [
+        {
+          "file": "maps/forest.map.json",
+          "append": "/assets",
+          "value": {
+            "id": "asset.tree-art",
+            "path": "art/tree.png",
+            "mediaType": "image/png",
+            "wuPerAssetUnit": 1,
+            "size": [
+              32,
+              32
+            ]
+          }
+        }
+      ],
+      "expect": {
+        "ok": false,
+        "code": "asset.missing",
+        "file": "maps/forest.map.json",
+        "path": "$.assets[0].path"
+      }
+    },
+    {
+      "id": "bundled-asset-accepted",
+      "group": "positive",
+      "edits": [
+        {
+          "add": "art/tree.png",
+          "text": "owned placeholder bytes",
+          "role": "asset"
+        },
+        {
+          "file": "maps/forest.map.json",
+          "append": "/assets",
+          "value": {
+            "id": "asset.tree-art",
+            "path": "art/tree.png",
+            "mediaType": "image/png",
+            "wuPerAssetUnit": 1,
+            "size": [
+              32,
+              32
+            ]
+          }
+        }
+      ],
+      "expect": {
+        "ok": true
+      }
+    },
+    {
+      "id": "bundled-pinned-schemas-accepted",
+      "group": "positive",
+      "edits": [
+        {
+          "add": "schemas/maplab.catalog.v1.schema.json",
+          "pinnedSchema": "maplab.catalog.v1.schema.json",
+          "role": "schema"
+        },
+        {
+          "add": "schemas/maplab.export.v1.schema.json",
+          "pinnedSchema": "maplab.export.v1.schema.json",
+          "role": "schema"
+        },
+        {
+          "add": "schemas/maplab.map.v1.schema.json",
+          "pinnedSchema": "maplab.map.v1.schema.json",
+          "role": "schema"
+        },
+        {
+          "add": "schemas/maplab.movement.v1.schema.json",
+          "pinnedSchema": "maplab.movement.v1.schema.json",
+          "role": "schema"
+        },
+        {
+          "add": "schemas/maplab.tileset.v1.schema.json",
+          "pinnedSchema": "maplab.tileset.v1.schema.json",
+          "role": "schema"
+        }
+      ],
+      "expect": {
+        "ok": true
+      }
+    },
+    {
+      "id": "empty-directory",
+      "group": "inventory",
+      "edits": [
+        {
+          "mkdir": "maps/empty"
+        }
+      ],
+      "expect": {
+        "ok": false,
+        "code": "bundle.empty-directory",
+        "file": null,
+        "path": "maps/empty"
+      }
+    },
+    {
+      "id": "special-file",
+      "group": "inventory",
+      "edits": [
+        {
+          "fifo": "maps/pipe.json"
+        }
+      ],
+      "expect": {
+        "ok": false,
+        "code": "bundle.special-file",
+        "file": null,
+        "path": "maps/pipe.json"
+      }
+    },
+    {
+      "id": "directory-depth-limit",
+      "group": "inventory",
+      "edits": [
+        {
+          "add": "d/d/d/d/d/d/d/d/d/d/d/d/d/d/d/d/d/f.json",
+          "text": "{}"
+        }
+      ],
+      "expect": {
+        "ok": false,
+        "code": "bundle.limit",
+        "file": null,
+        "path": "d/d/d/d/d/d/d/d/d/d/d/d/d/d/d/d/d"
+      }
+    },
+    {
+      "id": "case-alias-entry",
+      "group": "inventory",
+      "edits": [
+        {
+          "add": "maps/Forest.map.json",
+          "copyOf": "maps/forest.map.json"
+        }
+      ],
+      "expect": {
+        "ok": false,
+        "code": "bundle.path-alias",
+        "file": null,
+        "path": "maps/forest.map.json"
+      },
+      "requiresCaseSensitiveFs": true
+    },
+    {
+      "id": "manifest-files-unsorted",
+      "group": "manifest",
+      "edits": [
+        {
+          "file": "manifest.json",
+          "swap": "/files",
+          "value": [
+            0,
+            1
+          ]
+        }
+      ],
+      "expect": {
+        "ok": false,
+        "code": "manifest.order",
+        "file": "manifest.json",
+        "path": "$.files"
+      }
+    },
+    {
+      "id": "authored-file-unindexed",
+      "group": "manifest",
+      "edits": [
+        {
+          "add": "maps/notes.map.json",
+          "text": "{}",
+          "role": "authored"
+        }
+      ],
+      "expect": {
+        "ok": false,
+        "code": "manifest.unindexed",
+        "file": "manifest.json",
+        "path": "$.files[3]"
+      }
+    },
+    {
+      "id": "document-names-derived-file",
+      "group": "manifest",
+      "edits": [
+        {
+          "file": "manifest.json",
+          "set": "/files/0/role",
+          "value": "derived"
+        }
+      ],
+      "expect": {
+        "ok": false,
+        "code": "manifest.document-file",
+        "file": "manifest.json",
+        "path": "$.documents[0].path"
+      }
+    },
+    {
+      "id": "duplicate-required-contract",
+      "group": "document",
+      "edits": [
+        {
+          "file": "manifest.json",
+          "insertSorted": "/requiredContracts",
+          "value": {
+            "key": "maplab.map",
+            "version": 1
+          }
+        }
+      ],
+      "expect": {
+        "ok": false,
+        "code": "contract.duplicate",
+        "file": "manifest.json",
+        "path": "$.requiredContracts[5]"
+      }
+    },
+    {
+      "id": "unsupported-camera-model",
+      "group": "document",
+      "edits": [
+        {
+          "file": "maps/forest.map.json",
+          "set": "/camera/model/version",
+          "value": 2
+        }
+      ],
+      "expect": {
+        "ok": false,
+        "code": "contract.unsupported",
+        "file": "maps/forest.map.json",
+        "path": "$.camera.model"
+      }
+    },
+    {
+      "id": "undeclared-completion-event",
+      "group": "reference",
+      "edits": [
+        {
+          "file": "maps/forest.map.json",
+          "set": "/encounters/0/completionEvent/key",
+          "value": "core.nowhere"
+        }
+      ],
+      "expect": {
+        "ok": false,
+        "code": "catalog.missing",
+        "file": "maps/forest.map.json",
+        "path": "$.encounters[0].completionEvent"
+      }
+    },
+    {
+      "id": "completion-event-wrong-version",
+      "group": "reference",
+      "edits": [
+        {
+          "file": "maps/forest.map.json",
+          "set": "/encounters/0/completionEvent/version",
+          "value": 2
+        }
+      ],
+      "expect": {
+        "ok": false,
+        "code": "catalog.missing",
+        "file": "maps/forest.map.json",
+        "path": "$.encounters[0].completionEvent"
+      }
+    },
+    {
+      "id": "undeclared-wave",
+      "group": "reference",
+      "edits": [
+        {
+          "file": "maps/forest.map.json",
+          "append": "/encounters/0/waves",
+          "value": {
+            "key": "core.nowhere",
+            "version": 1
+          }
+        }
+      ],
+      "expect": {
+        "ok": false,
+        "code": "catalog.missing",
+        "file": "maps/forest.map.json",
+        "path": "$.encounters[0].waves[0]"
+      }
+    },
+    {
+      "id": "undeclared-respawn-event",
+      "group": "reference",
+      "edits": [
+        {
+          "file": "maps/forest.map.json",
+          "set": "/entities/7/respawn/event",
+          "value": {
+            "key": "core.nowhere",
+            "version": 1
+          }
+        }
+      ],
+      "expect": {
+        "ok": false,
+        "code": "catalog.missing",
+        "file": "maps/forest.map.json",
+        "path": "$.entities[7].respawn.event"
+      }
+    },
+    {
+      "id": "undeclared-shake-effect",
+      "group": "reference",
+      "edits": [
+        {
+          "file": "maps/forest.map.json",
+          "append": "/camera/shakeEffects",
+          "value": {
+            "key": "core.nowhere",
+            "version": 1
+          }
+        }
+      ],
+      "expect": {
+        "ok": false,
+        "code": "catalog.missing",
+        "file": "maps/forest.map.json",
+        "path": "$.camera.shakeEffects[1]"
+      }
+    },
+    {
+      "id": "undeclared-ledge-action",
+      "group": "reference",
+      "edits": [
+        {
+          "file": "movement/player.movement.json",
+          "append": "/abilities",
+          "value": {
+            "kind": "ledge",
+            "version": 1,
+            "grabReach": 16,
+            "climbTicks": 24,
+            "action": {
+              "key": "core.ledge.climb",
+              "version": 1
+            }
+          }
+        }
+      ],
+      "expect": {
+        "ok": false,
+        "code": "catalog.missing",
+        "file": "movement/player.movement.json",
+        "path": "$.abilities[2].action"
+      }
+    },
+    {
+      "id": "undeclared-modifier-allowed",
+      "group": "reference",
+      "edits": [
+        {
+          "file": "movement/player.movement.json",
+          "append": "/abilities",
+          "value": {
+            "kind": "modifier",
+            "version": 1,
+            "allowed": [
+              {
+                "key": "core.idle",
+                "version": 1
+              },
+              {
+                "key": "core.nowhere",
+                "version": 1
+              }
+            ],
+            "stacking": "multiplyThenClamp"
+          }
+        }
+      ],
+      "expect": {
+        "ok": false,
+        "code": "catalog.missing",
+        "file": "movement/player.movement.json",
+        "path": "$.abilities[2].allowed[1]"
+      }
+    },
+    {
+      "id": "dangling-profile-param-ref",
+      "group": "reference",
+      "edits": [
+        {
+          "file": "movement/player.movement.json",
+          "append": "/abilities",
+          "value": {
+            "kind": "registered",
+            "version": 1,
+            "definition": {
+              "key": "core.chest.open",
+              "version": 1,
+              "params": {
+                "target": {
+                  "ref": {
+                    "kind": "body",
+                    "id": "body.nowhere"
+                  }
+                }
+              }
+            },
+            "solver": {
+              "key": "game.special-solver",
+              "version": 1
+            }
+          }
+        }
+      ],
+      "expect": {
+        "ok": false,
+        "code": "reference.dangling",
+        "file": "movement/player.movement.json",
+        "path": "$.abilities[2].definition.params.target.ref.id"
+      }
+    },
+    {
+      "id": "cross-map-ref-outside-closure",
+      "group": "reference",
+      "edits": [
+        {
+          "add": "maps/cave.map.json",
+          "copyOf": "maps/clearing.map.json",
+          "role": "authored",
+          "document": {
+            "format": "maplab.map",
+            "id": "map.cave",
+            "version": 1
+          }
+        },
+        {
+          "file": "maps/cave.map.json",
+          "set": "/id",
+          "value": "map.cave"
+        },
+        {
+          "file": "maps/cave.map.json",
+          "remove": "/dependencies/1"
+        },
+        {
+          "file": "maps/cave.map.json",
+          "set": "/entities/0/destination",
+          "value": {
+            "mapId": "map.cave",
+            "entityId": "start.arrival"
+          }
+        },
+        {
+          "file": "maps/forest.map.json",
+          "append": "/dependencies",
+          "value": {
+            "id": "map.cave",
+            "kind": "map",
+            "path": "maps/cave.map.json",
+            "required": true
+          }
+        },
+        {
+          "file": "movement/player.movement.json",
+          "append": "/abilities",
+          "value": {
+            "kind": "registered",
+            "version": 1,
+            "definition": {
+              "key": "core.chest.open",
+              "version": 1,
+              "params": {
+                "target": {
+                  "ref": {
+                    "kind": "body",
+                    "id": "body.gate",
+                    "mapId": "map.forest"
+                  }
+                }
+              }
+            },
+            "solver": {
+              "key": "game.special-solver",
+              "version": 1
+            }
+          }
+        }
+      ],
+      "expect": {
+        "ok": false,
+        "code": "reference.undeclared",
+        "file": "movement/player.movement.json",
+        "path": "$.abilities[2].definition.params.target.ref.mapId"
+      }
+    },
+    {
+      "id": "portal-outside-closure",
+      "group": "reference",
+      "edits": [
+        {
+          "add": "maps/cave.map.json",
+          "copyOf": "maps/clearing.map.json",
+          "role": "authored",
+          "document": {
+            "format": "maplab.map",
+            "id": "map.cave",
+            "version": 1
+          }
+        },
+        {
+          "file": "maps/cave.map.json",
+          "set": "/id",
+          "value": "map.cave"
+        },
+        {
+          "file": "maps/cave.map.json",
+          "remove": "/dependencies/1"
+        },
+        {
+          "file": "maps/cave.map.json",
+          "set": "/entities/0/destination",
+          "value": {
+            "mapId": "map.cave",
+            "entityId": "start.arrival"
+          }
+        },
+        {
+          "file": "maps/forest.map.json",
+          "append": "/dependencies",
+          "value": {
+            "id": "map.cave",
+            "kind": "map",
+            "path": "maps/cave.map.json",
+            "required": true
+          }
+        },
+        {
+          "file": "maps/cave.map.json",
+          "set": "/entities/0/destination",
+          "value": {
+            "mapId": "map.forest",
+            "entityId": "start.player"
+          }
+        }
+      ],
+      "expect": {
+        "ok": false,
+        "code": "reference.undeclared",
+        "file": "maps/cave.map.json",
+        "path": "$.entities[0].destination.mapId"
+      }
+    },
+    {
+      "id": "cross-map-ref-resolves-in-named-map",
+      "group": "reference",
+      "edits": [
+        {
+          "file": "maps/forest.map.json",
+          "set": "/triggers/0/actions/1/params/target/ref",
+          "value": {
+            "kind": "body",
+            "id": "body.gate",
+            "mapId": "map.clearing"
+          }
+        }
+      ],
+      "expect": {
+        "ok": false,
+        "code": "reference.dangling",
+        "file": "maps/forest.map.json",
+        "path": "$.triggers[0].actions[1].params.target.ref.id"
+      }
+    },
+    {
+      "id": "group-ref-resolves-in-named-map",
+      "group": "reference",
+      "edits": [
+        {
+          "file": "maps/forest.map.json",
+          "set": "/triggers/0/actions/1/params/target/ref",
+          "value": {
+            "kind": "group",
+            "id": "group.boss",
+            "mapId": "map.clearing"
+          }
+        }
+      ],
+      "expect": {
+        "ok": false,
+        "code": "reference.dangling",
+        "file": "maps/forest.map.json",
+        "path": "$.triggers[0].actions[1].params.target.ref.id"
+      }
+    },
+    {
+      "id": "edge-shape-of-other-body",
+      "group": "reference",
+      "edits": [
+        {
+          "file": "maps/forest.map.json",
+          "set": "/footholds/0/solidEdge/shapeId",
+          "value": "shape.west"
+        }
+      ],
+      "expect": {
+        "ok": false,
+        "code": "reference.owner",
+        "file": "maps/forest.map.json",
+        "path": "$.footholds[0].solidEdge.shapeId"
+      }
+    },
+    {
+      "id": "duplicate-catalog-entry",
+      "group": "reference",
+      "edits": [
+        {
+          "file": "catalogs/core.catalog.json",
+          "append": "/entries",
+          "value": {
+            "fields": [],
+            "key": "core.checkpoint.activate",
+            "kind": "action",
+            "stage": "planned",
+            "stateNames": [],
+            "version": 1
+          }
+        }
+      ],
+      "expect": {
+        "ok": false,
+        "code": "catalog.duplicate",
+        "file": "catalogs/core.catalog.json",
+        "path": "$.entries[18]"
+      }
+    },
+    {
+      "id": "duplicate-catalog-field",
+      "group": "reference",
+      "edits": [
+        {
+          "file": "catalogs/core.catalog.json",
+          "append": "/entries/0/fields",
+          "value": {
+            "maxLength": 64,
+            "name": "lootTable",
+            "required": true,
+            "type": "string"
+          }
+        }
+      ],
+      "expect": {
+        "ok": false,
+        "code": "catalog.duplicate-field",
+        "file": "catalogs/core.catalog.json",
+        "path": "$.entries[0].fields[1].name"
+      }
+    },
+    {
+      "id": "duplicate-tileset-tile",
+      "group": "reference",
+      "edits": [
+        {
+          "file": "tilesets/forest.tileset.json",
+          "append": "/tiles",
+          "value": {
+            "allowMirrorX": true,
+            "allowMirrorY": true,
+            "allowedQuarterTurns": [
+              0,
+              1,
+              2,
+              3
+            ],
+            "id": "tile.dirt",
+            "suggestedMaterialId": "material.earth",
+            "terrainId": "terrain.forest",
+            "traceShapes": [
+              {
+                "id": "trace.full",
+                "kind": "rect",
+                "rect": [
+                  0,
+                  0,
+                  32,
+                  32
+                ]
+              }
+            ],
+            "visual": {
+              "fill": "#6b4f2f",
+              "kind": "shape",
+              "shape": {
+                "kind": "rect",
+                "rect": [
+                  0,
+                  0,
+                  32,
+                  32
+                ]
+              }
+            }
+          }
+        }
+      ],
+      "expect": {
+        "ok": false,
+        "code": "object.duplicate",
+        "file": "tilesets/forest.tileset.json",
+        "path": "$.tiles[3].id"
+      }
+    },
+    {
+      "id": "duplicate-trace-shape",
+      "group": "reference",
+      "edits": [
+        {
+          "file": "tilesets/forest.tileset.json",
+          "append": "/tiles/0/traceShapes",
+          "value": {
+            "id": "trace.full",
+            "kind": "rect",
+            "rect": [
+              0,
+              0,
+              16,
+              16
+            ]
+          }
+        }
+      ],
+      "expect": {
+        "ok": false,
+        "code": "object.duplicate",
+        "file": "tilesets/forest.tileset.json",
+        "path": "$.tiles[0].traceShapes[1].id"
+      }
+    },
+    {
+      "id": "duplicate-dependency",
+      "group": "closure",
+      "edits": [
+        {
+          "file": "maps/forest.map.json",
+          "append": "/dependencies",
+          "value": {
+            "id": "catalog.core",
+            "kind": "catalog",
+            "path": "catalogs/core.catalog.json",
+            "required": true
+          }
+        }
+      ],
+      "expect": {
+        "ok": false,
+        "code": "dependency.duplicate",
+        "file": "maps/forest.map.json",
+        "path": "$.dependencies[7]"
+      }
+    },
+    {
+      "id": "group-collides-with-object",
+      "group": "reference",
+      "edits": [
+        {
+          "file": "maps/forest.map.json",
+          "set": "/entities/5/groupId",
+          "value": "region.boss"
+        }
+      ],
+      "expect": {
+        "ok": false,
+        "code": "object.duplicate",
+        "file": "maps/forest.map.json",
+        "path": "$.entities[5].groupId"
+      }
+    },
+    {
+      "id": "self-portal-accepted",
+      "group": "positive",
+      "edits": [
+        {
+          "file": "maps/forest.map.json",
+          "set": "/entities/4/destination",
+          "value": {
+            "mapId": "map.forest",
+            "entityId": "start.player"
+          }
+        }
+      ],
+      "expect": {
+        "ok": true
+      }
+    },
+    {
+      "id": "third-map-and-transitive-portal-accepted",
+      "group": "positive",
+      "edits": [
+        {
+          "add": "maps/cave.map.json",
+          "copyOf": "maps/clearing.map.json",
+          "role": "authored",
+          "document": {
+            "format": "maplab.map",
+            "id": "map.cave",
+            "version": 1
+          }
+        },
+        {
+          "file": "maps/cave.map.json",
+          "set": "/id",
+          "value": "map.cave"
+        },
+        {
+          "file": "maps/cave.map.json",
+          "remove": "/dependencies/1"
+        },
+        {
+          "file": "maps/cave.map.json",
+          "set": "/entities/0/destination",
+          "value": {
+            "mapId": "map.cave",
+            "entityId": "start.arrival"
+          }
+        },
+        {
+          "file": "maps/forest.map.json",
+          "append": "/dependencies",
+          "value": {
+            "id": "map.cave",
+            "kind": "map",
+            "path": "maps/cave.map.json",
+            "required": true
+          }
+        },
+        {
+          "file": "maps/clearing.map.json",
+          "set": "/entities/0/destination",
+          "value": {
+            "mapId": "map.cave",
+            "entityId": "start.arrival"
+          }
+        }
+      ],
+      "expect": {
+        "ok": true
+      }
+    },
+    {
+      "id": "cross-map-ref-in-closure-accepted",
+      "group": "positive",
+      "edits": [
+        {
+          "file": "maps/forest.map.json",
+          "set": "/triggers/0/actions/1/params/target/ref",
+          "value": {
+            "kind": "body",
+            "id": "body.floor",
+            "mapId": "map.clearing"
+          }
+        }
+      ],
+      "expect": {
+        "ok": true
+      }
+    },
+    {
+      "id": "declared-profile-catalog-uses-accepted",
+      "group": "positive",
+      "edits": [
+        {
+          "file": "movement/player.movement.json",
+          "append": "/abilities",
+          "value": {
+            "kind": "ledge",
+            "version": 1,
+            "grabReach": 16,
+            "climbTicks": 24,
+            "action": {
+              "key": "core.chest.open",
+              "version": 1
+            }
+          }
+        }
+      ],
+      "expect": {
+        "ok": true
+      }
+    },
+    {
+      "id": "reference-like-param-names-accepted",
+      "group": "positive",
+      "edits": [
+        {
+          "file": "maps/forest.map.json",
+          "set": "/entities/1/archetype/params/itemId",
+          "value": "gold"
+        },
+        {
+          "file": "maps/forest.map.json",
+          "set": "/entities/0/activate/params",
+          "value": {
+            "kind": "note",
+            "id": "not-a-ref"
+          }
+        }
+      ],
+      "expect": {
+        "ok": true
+      }
+    },
+    {
+      "id": "collision-contract-role",
+      "group": "document",
+      "edits": [
+        {
+          "file": "maps/forest.map.json",
+          "set": "/collisionContract",
+          "value": {
+            "key": "maplab.climb",
+            "version": 1
+          }
+        }
+      ],
+      "expect": {
+        "ok": false,
+        "code": "contract.role",
+        "file": "maps/forest.map.json",
+        "path": "$.collisionContract"
+      }
+    },
+    {
+      "id": "collision-contract-format-role",
+      "group": "document",
+      "edits": [
+        {
+          "file": "maps/clearing.map.json",
+          "set": "/collisionContract",
+          "value": {
+            "key": "maplab.map",
+            "version": 1
+          }
+        }
+      ],
+      "expect": {
+        "ok": false,
+        "code": "contract.role",
+        "file": "maps/clearing.map.json",
+        "path": "$.collisionContract"
+      }
+    },
+    {
+      "id": "camera-model-role",
+      "group": "document",
+      "edits": [
+        {
+          "file": "maps/forest.map.json",
+          "set": "/camera/model",
+          "value": {
+            "key": "maplab.collision",
+            "version": 1
+          }
+        }
+      ],
+      "expect": {
+        "ok": false,
+        "code": "contract.role",
+        "file": "maps/forest.map.json",
+        "path": "$.camera.model"
+      }
+    },
+    {
+      "id": "required-feature-role",
+      "group": "document",
+      "edits": [
+        {
+          "file": "maps/clearing.map.json",
+          "append": "/requiredFeatures",
+          "value": {
+            "key": "maplab.tileset",
+            "version": 1
+          }
+        }
+      ],
+      "expect": {
+        "ok": false,
+        "code": "contract.role",
+        "file": "maps/clearing.map.json",
+        "path": "$.requiredFeatures[2]"
+      }
+    },
+    {
+      "id": "duplicate-required-feature",
+      "group": "document",
+      "edits": [
+        {
+          "file": "maps/clearing.map.json",
+          "append": "/requiredFeatures",
+          "value": {
+            "key": "maplab.camera",
+            "version": 1
+          }
+        }
+      ],
+      "expect": {
+        "ok": false,
+        "code": "contract.duplicate",
+        "file": "maps/clearing.map.json",
+        "path": "$.requiredFeatures[2]"
+      }
+    },
+    {
+      "id": "controller-role",
+      "group": "document",
+      "edits": [
+        {
+          "file": "movement/player.movement.json",
+          "set": "/controller",
+          "value": {
+            "key": "maplab.camera",
+            "version": 1
+          }
+        }
+      ],
+      "expect": {
+        "ok": false,
+        "code": "contract.role",
+        "file": "movement/player.movement.json",
+        "path": "$.controller"
+      }
+    },
+    {
+      "id": "profile-ref-in-undeclaring-user",
+      "group": "reference",
+      "edits": [
+        {
+          "file": "catalogs/core.catalog.json",
+          "insertSorted": "/entries",
+          "value": {
+            "fields": [
+              {
+                "name": "target",
+                "required": true,
+                "target": "body",
+                "type": "ref"
+              }
+            ],
+            "key": "core.vault",
+            "kind": "traversal",
+            "stage": "planned",
+            "stateNames": [],
+            "version": 1
+          }
+        },
+        {
+          "file": "movement/ground.movement.json",
+          "append": "/abilities",
+          "value": {
+            "definition": {
+              "key": "core.vault",
+              "params": {
+                "target": {
+                  "ref": {
+                    "id": "body.gate",
+                    "kind": "body"
+                  }
+                }
+              },
+              "version": 1
+            },
+            "kind": "registered",
+            "solver": {
+              "key": "maplab.reference-controller",
+              "version": 1
+            },
+            "version": 1
+          }
+        },
+        {
+          "file": "maps/clearing.map.json",
+          "set": "/entities/1/movementId",
+          "value": "movement.ground"
+        }
+      ],
+      "expect": {
+        "ok": false,
+        "code": "reference.dangling",
+        "file": "movement/ground.movement.json",
+        "path": "$.abilities[0].definition.params.target.ref.id"
+      }
+    },
+    {
+      "id": "profile-ref-in-closure-map",
+      "group": "reference",
+      "edits": [
+        {
+          "file": "catalogs/core.catalog.json",
+          "insertSorted": "/entries",
+          "value": {
+            "fields": [
+              {
+                "name": "target",
+                "required": true,
+                "target": "body",
+                "type": "ref"
+              }
+            ],
+            "key": "core.vault",
+            "kind": "traversal",
+            "stage": "planned",
+            "stateNames": [],
+            "version": 1
+          }
+        },
+        {
+          "file": "movement/ground.movement.json",
+          "append": "/abilities",
+          "value": {
+            "definition": {
+              "key": "core.vault",
+              "params": {
+                "target": {
+                  "ref": {
+                    "id": "body.gate",
+                    "kind": "body"
+                  }
+                }
+              },
+              "version": 1
+            },
+            "kind": "registered",
+            "solver": {
+              "key": "maplab.reference-controller",
+              "version": 1
+            },
+            "version": 1
+          }
+        }
+      ],
+      "expect": {
+        "ok": false,
+        "code": "reference.dangling",
+        "file": "movement/ground.movement.json",
+        "path": "$.abilities[0].definition.params.target.ref.id"
+      }
+    },
+    {
+      "id": "terrain-tileset-transitive-only",
+      "group": "reference",
+      "edits": [
+        {
+          "file": "maps/clearing.map.json",
+          "append": "/layers",
+          "value": {
+            "id": "layer.tiles",
+            "kind": "tile",
+            "name": "Tiles",
+            "occlusionFade": null,
+            "opacity": 1,
+            "order": 3,
+            "parentId": null,
+            "visible": true
+          }
+        },
+        {
+          "file": "maps/clearing.map.json",
+          "set": "/terrain",
+          "value": [
+            {
+              "cellSize": [
+                32,
+                32
+              ],
+              "chunkSize": 32,
+              "chunks": [],
+              "layerId": "layer.tiles",
+              "origin": [
+                0,
+                0
+              ],
+              "rulesVersion": 1,
+              "terrainIntent": [],
+              "tilesetId": "tileset.forest",
+              "variationSeed": 7
+            }
+          ]
+        }
+      ],
+      "expect": {
+        "ok": false,
+        "code": "reference.undeclared",
+        "file": "maps/clearing.map.json",
+        "path": "$.terrain[0].tilesetId"
+      }
+    },
+    {
+      "id": "optional-dependency-two-paths",
+      "group": "closure",
+      "edits": [
+        {
+          "file": "maps/clearing.map.json",
+          "insertSorted": "/dependencies",
+          "value": {
+            "id": "prefab.tree",
+            "kind": "prefab",
+            "path": "prefabs/other.prefab.json",
+            "required": false
+          }
+        }
+      ],
+      "expect": {
+        "ok": false,
+        "code": "dependency.path-identity",
+        "file": "maps/forest.map.json",
+        "path": "$.dependencies[5].path"
+      }
+    },
+    {
+      "id": "optional-dependency-path-alias",
+      "group": "closure",
+      "edits": [
+        {
+          "file": "maps/forest.map.json",
+          "set": "/dependencies/5/path",
+          "value": "maps/clearing.map.json"
+        }
+      ],
+      "expect": {
+        "ok": false,
+        "code": "dependency.path-alias",
+        "file": "maps/forest.map.json",
+        "path": "$.dependencies[5].path"
+      }
+    },
+    {
+      "id": "out-of-range-number",
+      "group": "document",
+      "edits": [
+        {
+          "file": "maps/forest.map.json",
+          "replace": "\"variationSeed\":7",
+          "with": "\"variationSeed\":7e400"
+        }
+      ],
+      "expect": {
+        "ok": false,
+        "code": "json.number",
+        "file": "maps/forest.map.json",
+        "path": "$.terrain[0].variationSeed"
+      }
+    },
+    {
+      "id": "nesting-depth-limit",
+      "group": "document",
+      "edits": [
+        {
+          "file": "maps/forest.map.json",
+          "replace": "\"chunks\":[]",
+          "with": "\"chunks\":[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]"
+        }
+      ],
+      "expect": {
+        "ok": false,
+        "code": "json.limit",
+        "file": "maps/forest.map.json",
+        "path": "$.terrain[0].chunks[0][0][0][0][0][0][0][0][0][0][0][0][0][0][0][0][0][0][0][0][0][0][0][0][0][0][0][0][0][0][0][0][0][0][0][0][0][0][0][0][0][0][0][0][0][0][0][0][0][0][0][0][0][0][0][0][0][0][0][0][0]"
+      }
+    },
+    {
+      "id": "scoped-profile-ref-accepted",
+      "group": "positive",
+      "edits": [
+        {
+          "file": "catalogs/core.catalog.json",
+          "insertSorted": "/entries",
+          "value": {
+            "fields": [
+              {
+                "name": "target",
+                "required": true,
+                "target": "body",
+                "type": "ref"
+              }
+            ],
+            "key": "core.vault",
+            "kind": "traversal",
+            "stage": "planned",
+            "stateNames": [],
+            "version": 1
+          }
+        },
+        {
+          "file": "movement/ground.movement.json",
+          "append": "/abilities",
+          "value": {
+            "definition": {
+              "key": "core.vault",
+              "params": {
+                "target": {
+                  "ref": {
+                    "id": "body.gate",
+                    "kind": "body",
+                    "mapId": "map.forest"
+                  }
+                }
+              },
+              "version": 1
+            },
+            "kind": "registered",
+            "solver": {
+              "key": "maplab.reference-controller",
+              "version": 1
+            },
+            "version": 1
+          }
+        },
+        {
+          "file": "maps/clearing.map.json",
+          "set": "/entities/1/movementId",
+          "value": "movement.ground"
+        }
+      ],
+      "expect": {
+        "ok": true
+      }
+    },
+    {
+      "id": "declared-terrain-tileset-accepted",
+      "group": "positive",
+      "edits": [
+        {
+          "file": "maps/clearing.map.json",
+          "append": "/layers",
+          "value": {
+            "id": "layer.tiles",
+            "kind": "tile",
+            "name": "Tiles",
+            "occlusionFade": null,
+            "opacity": 1,
+            "order": 3,
+            "parentId": null,
+            "visible": true
+          }
+        },
+        {
+          "file": "maps/clearing.map.json",
+          "set": "/terrain",
+          "value": [
+            {
+              "cellSize": [
+                32,
+                32
+              ],
+              "chunkSize": 32,
+              "chunks": [],
+              "layerId": "layer.tiles",
+              "origin": [
+                0,
+                0
+              ],
+              "rulesVersion": 1,
+              "terrainIntent": [],
+              "tilesetId": "tileset.forest",
+              "variationSeed": 7
+            }
+          ]
+        },
+        {
+          "file": "maps/clearing.map.json",
+          "insertSorted": "/dependencies",
+          "value": {
+            "id": "tileset.forest",
+            "kind": "tileset",
+            "path": "tilesets/forest.tileset.json",
+            "required": true
+          }
+        }
+      ],
+      "expect": {
+        "ok": true
+      }
+    },
+    {
+      "id": "group-layer-target-accepted",
+      "group": "positive",
+      "edits": [
+        {
+          "file": "catalogs/core.catalog.json",
+          "insertSorted": "/entries",
+          "value": {
+            "fields": [
+              {
+                "name": "target",
+                "required": true,
+                "target": "group",
+                "type": "ref"
+              }
+            ],
+            "key": "core.group.alert",
+            "kind": "action",
+            "stage": "planned",
+            "stateNames": [],
+            "version": 1
+          }
+        },
+        {
+          "file": "maps/forest.map.json",
+          "append": "/layers",
+          "value": {
+            "id": "layer.group",
+            "kind": "group",
+            "name": "Group",
+            "opacity": 1,
+            "order": 7,
+            "parentId": null,
+            "visible": true
+          }
+        },
+        {
+          "file": "maps/forest.map.json",
+          "append": "/triggers/0/actions",
+          "value": {
+            "key": "core.group.alert",
+            "params": {
+              "target": {
+                "ref": {
+                  "id": "layer.group",
+                  "kind": "group"
+                }
+              }
+            },
+            "version": 1
+          }
+        }
+      ],
+      "expect": {
+        "ok": true
+      }
+    }
+  ]
+}

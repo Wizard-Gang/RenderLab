@@ -14,10 +14,10 @@ export type { CameraView, PixelPolicy, ZoomLimits } from "./camera/view";
 export type { AnimationState, Facing } from "./timeline/animation";
 export { acceptSnapshot } from "./timeline/snapshot";
 export type { EntityPresentation, EventParam, PresentationEvent, PresentationSnapshot } from "./timeline/snapshot";
-export { CHUNK_CELLS, CHUNK_SIZE, RESOURCE_KINDS } from "./scene/model";
+export { CHUNK_CELLS, CHUNK_SIZE, MAX_SHAPE_POINTS, RESOURCE_KINDS } from "./scene/model";
 export type {
   Appearance, CharacterObject, EffectObject, LayerDescriptor, Mobility, ParticlesObject, ResourceDescriptor, ResourceKind,
-  SceneDefinition, SceneObject, SceneObjectKind, SourceRef, SpriteObject, TileCell, TileChunkObject,
+  SceneDefinition, SceneObject, SceneObjectKind, ShapeGeometry, ShapeObject, SourceRef, SpriteObject, TileCell, TileChunkObject,
 } from "./scene/model";
 export type { CellChange, LayerPatch, ObjectPatch, SceneChange, SceneDelta, SceneDirty } from "./scene/delta";
 export { canonicalJson } from "./scene/data";

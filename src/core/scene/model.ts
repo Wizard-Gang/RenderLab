@@ -124,7 +124,25 @@ export interface EffectObject extends ObjectBase {
   readonly params: Readonly<Record<string, number>>;
 }
 
-export type SceneObject = SpriteObject | TileChunkObject | CharacterObject | ParticlesObject | EffectObject;
+/** Shape geometry in the object's local space, in world units. Rectangles are x, y, width, height. */
+export type ShapeGeometry =
+  | { readonly kind: "rect"; readonly x: number; readonly y: number; readonly width: number; readonly height: number }
+  | { readonly kind: "circle"; readonly center: Vec2; readonly radius: number }
+  | { readonly kind: "polygon"; readonly points: readonly Vec2[] };
+
+export const MAX_SHAPE_POINTS = 4096;
+
+/** A filled vector shape, such as MapLab's authored shape visuals. It needs no resource. */
+export interface ShapeObject extends ObjectBase {
+  readonly kind: "shape";
+  readonly transform: Transform2D;
+  readonly geometry: ShapeGeometry;
+  /** 0xRRGGBB. */
+  readonly fill: number;
+  readonly alpha: number;
+}
+
+export type SceneObject = SpriteObject | TileChunkObject | ShapeObject | CharacterObject | ParticlesObject | EffectObject;
 export type SceneObjectKind = SceneObject["kind"];
 
 export interface SceneDefinition {

@@ -1,0 +1,610 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:maplab:schema:maplab.tileset:1",
+  "title": "maplab.tileset v1",
+  "type": "object",
+  "properties": {
+    "format": {
+      "const": "maplab.tileset"
+    },
+    "version": {
+      "const": 1
+    },
+    "id": {
+      "$ref": "#/$defs/id"
+    },
+    "name": {
+      "type": "string",
+      "maxLength": 256
+    },
+    "cellSize": {
+      "$ref": "#/$defs/positive-vec"
+    },
+    "assets": {
+      "type": "array",
+      "minItems": 0,
+      "maxItems": 20000,
+      "items": {
+        "$ref": "#/$defs/asset"
+      }
+    },
+    "tiles": {
+      "type": "array",
+      "minItems": 0,
+      "maxItems": 20000,
+      "items": {
+        "$ref": "#/$defs/tile"
+      }
+    },
+    "terrains": {
+      "type": "array",
+      "minItems": 0,
+      "maxItems": 20000,
+      "items": {
+        "$ref": "#/$defs/tileset-terrain"
+      }
+    },
+    "rulesVersion": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 9007199254740991
+    },
+    "rules": {
+      "type": "array",
+      "minItems": 0,
+      "maxItems": 20000,
+      "items": {
+        "$ref": "#/$defs/tile-rule"
+      }
+    }
+  },
+  "required": [
+    "format",
+    "version",
+    "id",
+    "name",
+    "cellSize",
+    "assets",
+    "tiles",
+    "terrains",
+    "rulesVersion",
+    "rules"
+  ],
+  "additionalProperties": false,
+  "$defs": {
+    "id": {
+      "description": "Persistent ID: unique across a map's object collections; document IDs unique across a bundle.",
+      "type": "string",
+      "pattern": "^[a-z0-9][a-z0-9._:-]{0,95}$"
+    },
+    "key": {
+      "description": "Catalog and contract key; same grammar as IDs.",
+      "type": "string",
+      "pattern": "^[a-z0-9][a-z0-9._:-]{0,95}$"
+    },
+    "coordinate": {
+      "description": "World units on the 1/16 WU quantum within ±131,072 WU (2^17).",
+      "type": "number",
+      "multipleOf": 0.0625,
+      "minimum": -131072,
+      "maximum": 131072
+    },
+    "length": {
+      "description": "Positive length on the 1/16 WU quantum, at most 262,144 WU (2^18).",
+      "type": "number",
+      "multipleOf": 0.0625,
+      "exclusiveMinimum": 0,
+      "maximum": 262144
+    },
+    "rect": {
+      "description": "x, y, width, height in WU; the far edges must also stay within range.",
+      "type": "array",
+      "prefixItems": [
+        {
+          "$ref": "#/$defs/coordinate"
+        },
+        {
+          "$ref": "#/$defs/coordinate"
+        },
+        {
+          "$ref": "#/$defs/length"
+        },
+        {
+          "$ref": "#/$defs/length"
+        }
+      ],
+      "items": false,
+      "minItems": 4,
+      "maxItems": 4
+    },
+    "path": {
+      "description": "Bundle-root-relative POSIX path of portable filename characters; reserved device names and case aliases are semantic errors.",
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 240,
+      "pattern": "^[A-Za-z0-9_](?:[A-Za-z0-9._-]*[A-Za-z0-9_-])?(?:/[A-Za-z0-9_](?:[A-Za-z0-9._-]*[A-Za-z0-9_-])?)*$"
+    },
+    "asset": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/id"
+        },
+        "path": {
+          "$ref": "#/$defs/path"
+        },
+        "mediaType": {
+          "enum": [
+            "image/png",
+            "image/webp",
+            "image/svg+xml",
+            "audio/ogg",
+            "audio/wav"
+          ]
+        },
+        "wuPerAssetUnit": {
+          "$ref": "#/$defs/asset-scale"
+        },
+        "size": {
+          "$ref": "#/$defs/asset-size"
+        }
+      },
+      "required": [
+        "id",
+        "path",
+        "mediaType",
+        "wuPerAssetUnit",
+        "size"
+      ],
+      "additionalProperties": false
+    },
+    "asset-scale": {
+      "description": "WU per asset pixel or SVG viewBox unit; positive scale on the 1/65536 quantum.",
+      "type": "number",
+      "multipleOf": 0.0000152587890625,
+      "exclusiveMinimum": 0,
+      "maximum": 131072
+    },
+    "asset-size": {
+      "description": "Decoded pixel size, SVG viewBox size, or [0, 0] for audio.",
+      "type": "array",
+      "prefixItems": [
+        {
+          "$ref": "#/$defs/asset-extent"
+        },
+        {
+          "$ref": "#/$defs/asset-extent"
+        }
+      ],
+      "items": false,
+      "minItems": 2,
+      "maxItems": 2
+    },
+    "asset-extent": {
+      "type": "number",
+      "multipleOf": 0.0625,
+      "minimum": 0,
+      "maximum": 131072
+    },
+    "vec": {
+      "type": "array",
+      "prefixItems": [
+        {
+          "$ref": "#/$defs/coordinate"
+        },
+        {
+          "$ref": "#/$defs/coordinate"
+        }
+      ],
+      "minItems": 2,
+      "maxItems": 2,
+      "items": false
+    },
+    "positive-vec": {
+      "type": "array",
+      "prefixItems": [
+        {
+          "$ref": "#/$defs/length"
+        },
+        {
+          "$ref": "#/$defs/length"
+        }
+      ],
+      "minItems": 2,
+      "maxItems": 2,
+      "items": false
+    },
+    "color": {
+      "type": "string",
+      "pattern": "^#[0-9a-fA-F]{6}(?:[0-9a-fA-F]{2})?$"
+    },
+    "body-shape": {
+      "oneOf": [
+        {
+          "$ref": "#/$defs/rect-shape"
+        },
+        {
+          "$ref": "#/$defs/polygon-shape"
+        },
+        {
+          "$ref": "#/$defs/segment-shape"
+        }
+      ]
+    },
+    "rect-shape": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/id"
+        },
+        "kind": {
+          "const": "rect"
+        },
+        "rect": {
+          "$ref": "#/$defs/rect"
+        }
+      },
+      "required": [
+        "id",
+        "kind",
+        "rect"
+      ],
+      "additionalProperties": false
+    },
+    "polygon-shape": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/id"
+        },
+        "kind": {
+          "const": "polygon"
+        },
+        "points": {
+          "type": "array",
+          "minItems": 3,
+          "maxItems": 4096,
+          "items": {
+            "$ref": "#/$defs/vec"
+          }
+        }
+      },
+      "required": [
+        "id",
+        "kind",
+        "points"
+      ],
+      "additionalProperties": false
+    },
+    "segment-shape": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/id"
+        },
+        "kind": {
+          "const": "segment"
+        },
+        "a": {
+          "$ref": "#/$defs/vec"
+        },
+        "b": {
+          "$ref": "#/$defs/vec"
+        }
+      },
+      "required": [
+        "id",
+        "kind",
+        "a",
+        "b"
+      ],
+      "additionalProperties": false
+    },
+    "region-shape": {
+      "oneOf": [
+        {
+          "$ref": "#/$defs/rect-region"
+        },
+        {
+          "$ref": "#/$defs/polygon-region"
+        },
+        {
+          "$ref": "#/$defs/circle-region"
+        }
+      ]
+    },
+    "rect-region": {
+      "type": "object",
+      "properties": {
+        "kind": {
+          "const": "rect"
+        },
+        "rect": {
+          "$ref": "#/$defs/rect"
+        }
+      },
+      "required": [
+        "kind",
+        "rect"
+      ],
+      "additionalProperties": false
+    },
+    "polygon-region": {
+      "type": "object",
+      "properties": {
+        "kind": {
+          "const": "polygon"
+        },
+        "points": {
+          "type": "array",
+          "minItems": 3,
+          "maxItems": 4096,
+          "items": {
+            "$ref": "#/$defs/vec"
+          }
+        }
+      },
+      "required": [
+        "kind",
+        "points"
+      ],
+      "additionalProperties": false
+    },
+    "circle-region": {
+      "type": "object",
+      "properties": {
+        "kind": {
+          "const": "circle"
+        },
+        "center": {
+          "$ref": "#/$defs/vec"
+        },
+        "radius": {
+          "$ref": "#/$defs/length"
+        }
+      },
+      "required": [
+        "kind",
+        "center",
+        "radius"
+      ],
+      "additionalProperties": false
+    },
+    "visual-source": {
+      "oneOf": [
+        {
+          "$ref": "#/$defs/asset-source"
+        },
+        {
+          "$ref": "#/$defs/shape-source"
+        },
+        {
+          "$ref": "#/$defs/frames-source"
+        }
+      ]
+    },
+    "asset-source": {
+      "type": "object",
+      "properties": {
+        "kind": {
+          "const": "asset"
+        },
+        "assetId": {
+          "$ref": "#/$defs/id"
+        },
+        "pivot": {
+          "$ref": "#/$defs/vec"
+        }
+      },
+      "required": [
+        "kind",
+        "assetId",
+        "pivot"
+      ],
+      "additionalProperties": false
+    },
+    "shape-source": {
+      "type": "object",
+      "properties": {
+        "kind": {
+          "const": "shape"
+        },
+        "shape": {
+          "$ref": "#/$defs/region-shape"
+        },
+        "fill": {
+          "$ref": "#/$defs/color"
+        }
+      },
+      "required": [
+        "kind",
+        "shape",
+        "fill"
+      ],
+      "additionalProperties": false
+    },
+    "frames-source": {
+      "type": "object",
+      "properties": {
+        "kind": {
+          "const": "frames"
+        },
+        "assetIds": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 20000,
+          "items": {
+            "$ref": "#/$defs/id"
+          }
+        },
+        "pivot": {
+          "$ref": "#/$defs/vec"
+        },
+        "frameTicks": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 20000,
+          "items": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 9007199254740991
+          }
+        },
+        "loop": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "kind",
+        "assetIds",
+        "pivot",
+        "frameTicks",
+        "loop"
+      ],
+      "additionalProperties": false
+    },
+    "tile": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/id"
+        },
+        "visual": {
+          "$ref": "#/$defs/visual-source"
+        },
+        "allowedQuarterTurns": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 4,
+          "items": {
+            "enum": [
+              0,
+              1,
+              2,
+              3
+            ]
+          },
+          "uniqueItems": true
+        },
+        "allowMirrorX": {
+          "type": "boolean"
+        },
+        "allowMirrorY": {
+          "type": "boolean"
+        },
+        "terrainId": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "$ref": "#/$defs/id"
+            }
+          ]
+        },
+        "suggestedMaterialId": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "$ref": "#/$defs/id"
+            }
+          ]
+        },
+        "traceShapes": {
+          "type": "array",
+          "minItems": 0,
+          "maxItems": 20000,
+          "items": {
+            "$ref": "#/$defs/body-shape"
+          }
+        }
+      },
+      "required": [
+        "id",
+        "visual",
+        "allowedQuarterTurns",
+        "allowMirrorX",
+        "allowMirrorY",
+        "terrainId",
+        "suggestedMaterialId",
+        "traceShapes"
+      ],
+      "additionalProperties": false
+    },
+    "tileset-terrain": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/id"
+        },
+        "name": {
+          "type": "string",
+          "maxLength": 256
+        },
+        "biome": {
+          "$ref": "#/$defs/key"
+        },
+        "fallbackTileId": {
+          "$ref": "#/$defs/id"
+        }
+      },
+      "required": [
+        "id",
+        "name",
+        "biome",
+        "fallbackTileId"
+      ],
+      "additionalProperties": false
+    },
+    "tile-rule": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/id"
+        },
+        "terrainId": {
+          "$ref": "#/$defs/id"
+        },
+        "neighborMask": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 255
+        },
+        "priority": {
+          "type": "integer",
+          "minimum": -9007199254740991,
+          "maximum": 9007199254740991
+        },
+        "outputTileIds": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 20000,
+          "items": {
+            "$ref": "#/$defs/id"
+          }
+        },
+        "weights": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 20000,
+          "items": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 9007199254740991
+          }
+        }
+      },
+      "required": [
+        "id",
+        "terrainId",
+        "neighborMask",
+        "priority",
+        "outputTileIds",
+        "weights"
+      ],
+      "additionalProperties": false
+    }
+  }
+}

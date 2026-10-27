@@ -3,6 +3,15 @@
   "version": 1,
   "fixtures": [
     {
+      "path": "fixtures/maplab/conformance/bundle/cases.json",
+      "sha256": "9b7f8a48e7c8956f980d919d9980045ccfc0e820132ee4924d0eff39f0431d6f",
+      "source": {
+        "repository": "Wizard-Gang/MapLab",
+        "commit": "9e790345d9295e8c42218944e7fbc1b4d4def418",
+        "path": "conformance/bundle/cases.json"
+      }
+    },
+    {
       "path": "fixtures/maplab/forest-export/catalogs/core.catalog.json",
       "sha256": "441f1389d0cdd3ae845d6daf6eefcb9ff7012e592ffa6a5d2bb0b239d6cf2583",
       "source": {
@@ -75,12 +84,66 @@
       }
     },
     {
+      "path": "fixtures/maplab/schemas/maplab.catalog.v1.schema.json",
+      "sha256": "f1303a346e9fb7dc22c9cb05e360f46e738486d5a48ad0ec63e42b1ff0ec7b10",
+      "source": {
+        "repository": "Wizard-Gang/MapLab",
+        "commit": "9e790345d9295e8c42218944e7fbc1b4d4def418",
+        "path": "schemas/maplab.catalog.v1.schema.json"
+      }
+    },
+    {
       "path": "fixtures/maplab/schemas/maplab.export.v1.schema.json",
       "sha256": "d2ebe8683121cc24a9a1cbca26e3b0dc0427cfa6fb8f20474bd0b28a7e42b2b4",
       "source": {
         "repository": "Wizard-Gang/MapLab",
         "commit": "30ad4acfff988a9de5ef7defaa9381b359d17fb1",
         "path": "schemas/maplab.export.v1.schema.json"
+      }
+    },
+    {
+      "path": "fixtures/maplab/schemas/maplab.map.v1.schema.json",
+      "sha256": "484bb18505dfc8bd37c6a02fb68ffe8c1f55d715e1e5f120454a544d8583a2ad",
+      "source": {
+        "repository": "Wizard-Gang/MapLab",
+        "commit": "9e790345d9295e8c42218944e7fbc1b4d4def418",
+        "path": "schemas/maplab.map.v1.schema.json"
+      }
+    },
+    {
+      "path": "fixtures/maplab/schemas/maplab.movement.v1.schema.json",
+      "sha256": "5a25bca62f1bdb144471a3e3a4f96cff12f374b14da3a8b9c1ac96a559816202",
+      "source": {
+        "repository": "Wizard-Gang/MapLab",
+        "commit": "9e790345d9295e8c42218944e7fbc1b4d4def418",
+        "path": "schemas/maplab.movement.v1.schema.json"
+      }
+    },
+    {
+      "path": "fixtures/maplab/schemas/maplab.navigation.v1.schema.json",
+      "sha256": "218caa32ab224f4402bb8cd073d5e92511472eecce5e5cd0fc4a8913ffe6bfc3",
+      "source": {
+        "repository": "Wizard-Gang/MapLab",
+        "commit": "9e790345d9295e8c42218944e7fbc1b4d4def418",
+        "path": "schemas/maplab.navigation.v1.schema.json"
+      }
+    },
+    {
+      "path": "fixtures/maplab/schemas/maplab.prefab.v1.schema.json",
+      "sha256": "28c531b7c2d2edf2c04f4fb05e6e850d7f808eb82278385b51ff652a78248147",
+      "source": {
+        "repository": "Wizard-Gang/MapLab",
+        "commit": "9e790345d9295e8c42218944e7fbc1b4d4def418",
+        "path": "schemas/maplab.prefab.v1.schema.json"
+      }
+    },
+    {
+      "path": "fixtures/maplab/schemas/maplab.tileset.v1.schema.json",
+      "sha256": "64e0205b7875a36c94d8c0e3f867d0838be6041671df6024ed81f2d0252c6196",
+      "source": {
+        "repository": "Wizard-Gang/MapLab",
+        "commit": "9e790345d9295e8c42218944e7fbc1b4d4def418",
+        "path": "schemas/maplab.tileset.v1.schema.json"
       }
     }
   ]

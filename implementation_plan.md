@@ -4,25 +4,6 @@
 
 The tasks below are the remaining baseline tasks reserved by the governing specification, [2026-10-18-renderlab.md](docs/specifications/2026-10-18-renderlab.md) §20, in its order. Each one is delivered by its own controlled PR. Before an adapter task, re-read the live `Wizard-Gang/MapLab` and `Wizard-Gang/RigLab` main branches (§3): their formats can change between sessions, and fixtures copied from them carry a provenance pin.
 
-### RLDR-008 — [FEAT] Adapt MapLab exports into the scene model
-
-- Dependency: RLDR-007 in queue order; technically RLDR-006's bundle reader.
-- Why: MapLab is the authority for world presentation (§3.1, §8).
-- Scope: `src/adapters/maplab/` is an independent, editor-free reader for the live `maplab.export` v1 bundle and the documents it closes over. Map, tileset, prefab and catalog documents are read for presentation; movement and navigation are read as references only. It covers:
-  - contract negotiation, schema validation and semantic reference validation;
-  - dependency closure;
-  - prefab-expanded visual placement with source traceability;
-  - terrain chunk extraction and layers;
-  - a source-ID-to-runtime-handle map.
-
-  Fixtures are copied under the provenance lock from MapLab's committed example export and its `conformance/bundle` cases.
-- Non-goals: No terrain batches (RLDR-009), no layer composition (RLDR-010), no collision or physics authority, and no imports from MapLab's `src/`.
-- Acceptance: Supported MapLab fixture exports load into scenes with every source ID traceable. Unsupported required features or versions fail with an actionable report, and nothing required is dropped silently.
-- Tests: Vitest runs over the pinned MapLab fixtures and their negative cases. A check proves `src/adapters/maplab/` imports no MapLab or editor code.
-- Validation: The standard set.
-- Documentation: `docs/INTEGRATION.md` gains the MapLab adapter section.
-- Authorities: Specification §3.1, §3.3, §8. On MapLab's live main: `AGENTS.md`, `docs/FORMATS.md`, `schemas/`, `conformance/`, and `docs/specifications/2026-10-17-maplab-r1/` (F formats, G engine integration). MapLab's own export writer was still queued in its plan on 2026-10-18, so re-check its state first.
-
 ### RLDR-009 — [FEAT] Batch and cull sparse terrain chunks
 
 - Dependency: RLDR-008 (MapLab terrain in the scene model).

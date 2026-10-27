@@ -1,0 +1,304 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:maplab:schema:maplab.catalog:1",
+  "title": "maplab.catalog v1",
+  "type": "object",
+  "properties": {
+    "format": {
+      "const": "maplab.catalog"
+    },
+    "version": {
+      "const": 1
+    },
+    "id": {
+      "$ref": "#/$defs/id"
+    },
+    "entries": {
+      "type": "array",
+      "minItems": 0,
+      "maxItems": 20000,
+      "items": {
+        "type": "object",
+        "properties": {
+          "key": {
+            "$ref": "#/$defs/key"
+          },
+          "version": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 9007199254740991
+          },
+          "kind": {
+            "enum": [
+              "archetype",
+              "behavior",
+              "action",
+              "effect",
+              "event",
+              "traversal",
+              "modifier",
+              "animation"
+            ]
+          },
+          "stage": {
+            "enum": [
+              "planned",
+              "available"
+            ]
+          },
+          "fields": {
+            "type": "array",
+            "minItems": 0,
+            "maxItems": 256,
+            "items": {
+              "$ref": "#/$defs/catalog-field"
+            }
+          },
+          "stateNames": {
+            "type": "array",
+            "minItems": 0,
+            "maxItems": 20000,
+            "items": {
+              "$ref": "#/$defs/key"
+            },
+            "uniqueItems": true
+          }
+        },
+        "required": [
+          "key",
+          "version",
+          "kind",
+          "stage",
+          "fields",
+          "stateNames"
+        ],
+        "additionalProperties": false
+      }
+    }
+  },
+  "required": [
+    "format",
+    "version",
+    "id",
+    "entries"
+  ],
+  "additionalProperties": false,
+  "$defs": {
+    "id": {
+      "description": "Persistent ID: unique across a map's object collections; document IDs unique across a bundle.",
+      "type": "string",
+      "pattern": "^[a-z0-9][a-z0-9._:-]{0,95}$"
+    },
+    "key": {
+      "description": "Catalog and contract key; same grammar as IDs.",
+      "type": "string",
+      "pattern": "^[a-z0-9][a-z0-9._:-]{0,95}$"
+    },
+    "catalog-field": {
+      "oneOf": [
+        {
+          "type": "object",
+          "properties": {
+            "name": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 96
+            },
+            "required": {
+              "type": "boolean"
+            },
+            "type": {
+              "const": "integer"
+            },
+            "min": {
+              "type": "integer",
+              "minimum": -9007199254740991,
+              "maximum": 9007199254740991
+            },
+            "max": {
+              "type": "integer",
+              "minimum": -9007199254740991,
+              "maximum": 9007199254740991
+            }
+          },
+          "required": [
+            "name",
+            "required",
+            "type",
+            "min",
+            "max"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "name": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 96
+            },
+            "required": {
+              "type": "boolean"
+            },
+            "type": {
+              "const": "number"
+            },
+            "min": {
+              "type": "number",
+              "minimum": -9007199254740991,
+              "maximum": 9007199254740991
+            },
+            "max": {
+              "type": "number",
+              "minimum": -9007199254740991,
+              "maximum": 9007199254740991
+            },
+            "quantum": {
+              "type": "number",
+              "exclusiveMinimum": 0,
+              "maximum": 9007199254740991
+            }
+          },
+          "required": [
+            "name",
+            "required",
+            "type",
+            "min",
+            "max",
+            "quantum"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "name": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 96
+            },
+            "required": {
+              "type": "boolean"
+            },
+            "type": {
+              "const": "string"
+            },
+            "maxLength": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991
+            }
+          },
+          "required": [
+            "name",
+            "required",
+            "type",
+            "maxLength"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "name": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 96
+            },
+            "required": {
+              "type": "boolean"
+            },
+            "type": {
+              "const": "boolean"
+            }
+          },
+          "required": [
+            "name",
+            "required",
+            "type"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "name": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 96
+            },
+            "required": {
+              "type": "boolean"
+            },
+            "type": {
+              "const": "enum"
+            },
+            "values": {
+              "type": "array",
+              "minItems": 1,
+              "maxItems": 256,
+              "items": {
+                "type": "string",
+                "maxLength": 256
+              },
+              "uniqueItems": true
+            }
+          },
+          "required": [
+            "name",
+            "required",
+            "type",
+            "values"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "name": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 96
+            },
+            "required": {
+              "type": "boolean"
+            },
+            "type": {
+              "const": "ref"
+            },
+            "target": {
+              "enum": [
+                "layer",
+                "visual",
+                "body",
+                "shape",
+                "foothold",
+                "traversal",
+                "region",
+                "entity",
+                "waypoint",
+                "route",
+                "trigger",
+                "encounter",
+                "asset",
+                "movement",
+                "flag",
+                "group",
+                "presentation",
+                "material"
+              ]
+            }
+          },
+          "required": [
+            "name",
+            "required",
+            "type",
+            "target"
+          ],
+          "additionalProperties": false
+        }
+      ]
+    }
+  }
+}

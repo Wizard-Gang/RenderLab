@@ -4,6 +4,8 @@
 
 The tasks below are the remaining baseline tasks reserved by the governing specification, [2026-10-18-renderlab.md](docs/specifications/2026-10-18-renderlab.md) §20, in its order. Each one is delivered by its own controlled PR. Before an adapter task, re-read the live `Wizard-Gang/MapLab` and `Wizard-Gang/RigLab` main branches (§3): their formats can change between sessions, and fixtures copied from them carry a provenance pin.
 
+RLDR-024 to RLDR-026 follow them. They adopt `Wizard-Gang/baseline`'s shared delivery contract, launcher and CI shape, each after the baseline release it names, and are not specification tasks.
+
 ### RLDR-010 — [FEAT] Compose MapLab visual layers, parallax and occlusion
 
 - Dependency: RLDR-009 (terrain rendering), RLDR-005 (camera).
@@ -203,3 +205,52 @@ The tasks below are the remaining baseline tasks reserved by the governing speci
 - Validation: The standard set.
 - Documentation: The complete set.
 - Authorities: Specification §20 (RLDR-021), §23, §24, §26.
+
+### RLDR-024 — [OPS] Adopt baseline's shared delivery contract
+
+- Dependency: baseline release r002 (BASE-045 and BASE-046) merged to `Wizard-Gang/baseline` `main`; read the merged commit and its `contract/vendor.lock.json` first.
+- Why: On 2026-10-29 the labs' copies of the delivery scripts had drifted into two to four versions each, and RenderLab's `check-portfolio-contract.mjs` pins its own `AGENTS.md` although baseline's `AGENTS.md` says every repository carries it byte for byte. Baseline now hosts one shared copy under a pinned `contract/` lock, and RenderLab's forked copies should become that copy plus RenderLab's own `config/` values.
+- Scope:
+  - Vendor `contract/` from that merged baseline commit, with its `contract/vendor.lock.json`.
+  - Replace RenderLab's forked `scripts/change-contract.mjs`, `check-change.mjs`, `check-patch.mjs`, `check-portfolio-contract.mjs`, `check-repository.mjs`, `repository-contract.mjs`, `check-workflow-shell.mjs`, `workflow-yaml.mjs`, `github-repository-settings.mjs`, `apply-github-repository-settings.mjs` and `verify-github-repository-settings.mjs` with the vendored versions, repoint the `package.json` scripts and the tests under `tests/contracts/` that import them, and keep RenderLab's values (the `RLDR` prefix, RLDR-007 as the last direct-to-main task, the required check names, the ruleset values, no release workflow) in `config/`.
+  - Keep `scripts/check-boundaries.mjs`, `check-fixtures.mjs` and `bench-terrain.mjs`, which are RenderLab's own.
+  - Carry baseline's `AGENTS.md` and `CONTRIBUTING.md` byte for byte.
+  - Move RenderLab's own invariants out of `AGENTS.md` into `README.md`: the React/TypeScript-only, PixiJS v8 and specification §5 import boundaries, the `RENDERLAB_PORT` and `RENDERLAB_NO_OPEN` worktree rule, the specification and docs lookups, and the rule to re-read live MapLab and RigLab `main` before an adapter task.
+  - Drop RenderLab's "Keep sessions cheap" section, which the owner rulebook already covers.
+- Non-goals: No change to any rule the checks enforce, to the required check names or to the rulesets. No workflow change (RLDR-026) and no launcher change (RLDR-025). No queue change beyond this task's removal.
+- Acceptance: The conformance `pin` check passes. `gate`, `change-id` and `verify` give the same decisions as before on RenderLab's history and config. `AGENTS.md` and `CONTRIBUTING.md` match baseline's hashes. Every rule that moved from `AGENTS.md` appears in `README.md`.
+- Tests: `tests/contracts/` follows the moved scripts and keeps its assertions. Agents run no tests locally; CI's `verify` runs them on the exact head.
+- Validation: Pinned `npm ci`, `npm run check:gate`, `check:change`, `check:patch`, `npm run audit:dependencies`, `git diff --check` and exact-head CI.
+- Documentation: `README.md` takes the moved invariants. `docs/CHANGE-MANAGEMENT.md` and `docs/TESTING.md` update any script path or command they cite.
+- Authorities: Baseline `contract/`, `contract/vendor.lock.json`, `AGENTS.md`, `CONTRIBUTING.md` and `docs/CHANGE-MANAGEMENT.md` at the merged commit. RenderLab's `scripts/`, `config/`, `AGENTS.md` and `README.md` at its `origin/main`. Owner ruling 2026-10-29: queue the adoption tasks after the releases.
+
+### RLDR-025 — [OPS] Adopt baseline's dev launcher and track the launch config
+
+- Dependency: RLDR-024, and BASE-047 released to baseline `main`.
+- Why: `scripts/dev.mjs` and `scripts/dev-lifecycle.mjs` existed as three different copies across the labs on 2026-10-29. RenderLab ignores all of `.claude/` in `.gitignore`, so its `launch.json` cannot be tracked, and the owner's workspace `launch.json` held stale entries.
+- Scope:
+  - Replace `scripts/dev.mjs` and `scripts/dev-lifecycle.mjs` with the vendored launcher, passing RenderLab's repository name, `RENDERLAB_PORT`, default port 5184, `RENDERLAB_NO_OPEN` and its install and `vite build` steps through config.
+  - `.gitignore` ignores only `.claude/worktrees/` and `.claude/settings.local.json`, in place of `.claude/`.
+  - Track a `.claude/launch.json` entry that runs `npm start` with no absolute or `/tmp` path.
+  - `package.json`'s `dev` script and `tests/contracts/dev-lifecycle.test.mjs` follow the vendored launcher.
+- Non-goals: No change to the port, the rendering application or the toolchain pins. The launcher's behavior stays as the labs have it.
+- Acceptance: `npm start` replaces a running server on its port, honors the per-worktree port and no-open variables and stops what it started on Ctrl-C. The shared repository contract accepts `.gitignore` and `.claude/launch.json`.
+- Tests: `tests/contracts/dev-lifecycle.test.mjs` follows the vendored launcher. Agents run no tests locally; CI's `verify` runs them on the exact head.
+- Validation: Pinned `npm ci`, `npm run check:gate`, `check:repository`, `check:patch`, `npm run audit:dependencies`, `git diff --check` and exact-head CI.
+- Documentation: `README.md`'s "Run locally" section names the vendored launcher.
+- Authorities: Baseline's launcher in `contract/` and BASE-047 at the released commit. RenderLab's `scripts/dev.mjs`, `scripts/dev-lifecycle.mjs`, `.gitignore` and README command map at its `origin/main`.
+
+### RLDR-026 — [OPS] Adopt baseline's CI shape
+
+- Dependency: RLDR-024, and BASE-048 released to baseline `main`.
+- Why: Baseline chose one CI shape for `gate`, `change-id`, `verify` and `security`. RenderLab's `gate.yml`, `change.yml` and `verify.yml` should become baseline's pinned files so that a drifted workflow fails `pin`.
+- Scope:
+  - RenderLab's `gate`, `change-id`, `verify` and `security` workflows become baseline's pinned files, carried byte for byte under the lock.
+  - The required check names (`gate` and `change-id` into `release/*`; `verify`, `change-id` and `security` into `main`) and the strict current-with-base policy stay as they are.
+  - Per-repository steps (the Chromium and WebKit browser tests, fixtures) run through package scripts, not workflow edits.
+- Non-goals: No change to required checks, rulesets or the no-deploy rule, and no release workflow.
+- Acceptance: A task PR and a release PR pass on the new shape with unchanged required check names. `check:workflow-shell` accepts the files, and a workflow that differs from its lock fails `pin`. `npm run verify:github-settings` reads back unchanged.
+- Tests: CI's `verify` runs the same suites on the new workflow shape. Agents run no tests locally.
+- Validation: Pinned `npm ci`, `npm run check:gate`, `check:workflow-shell`, `check:patch`, `npm run audit:dependencies`, `git diff --check`, exact-head CI and the `npm run verify:github-settings` read-back.
+- Documentation: `docs/TESTING.md` and `docs/CHANGE-MANAGEMENT.md` name the new workflow files where they cite the old ones.
+- Authorities: Baseline's `.github/workflows/`, BASE-048 and `contract/check-workflow-shell.mjs` at the released commit. RenderLab's `.github/workflows/` and `config/github-repository-settings.json` at its `origin/main`.
